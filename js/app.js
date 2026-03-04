@@ -1,4 +1,8 @@
-import { anonymizeText, randomParticipantId } from "./anonymize.js";
+import {
+  anonymizeText,
+  randomId,
+  getOrCreateParticipantId
+} from "./anonymize.js";
 
 const el = (id) => document.getElementById(id);
 
@@ -7,174 +11,185 @@ const role = el("role");
 const locationInput = el("location");
 const about = el("about");
 const consent = el("consent");
-const statusEl = el("status");
+
 const counter = el("counter");
+const statusEl = el("status");
 const resetBtn = el("resetBtn");
 
-const exportJsonlBtn = el("exportJsonlBtn");
-const exportCsvBtn = el("exportCsvBtn");
-const clearLocalBtn = el("clearLocalBtn");
-const savedCountEl = el("savedCount");
+const participantIdText = el("participantIdText");
+const copyPidBtn = el("copyPidBtn");
 
-const STORAGE_KEY = "job_prompt_responses_v1";
 
-function setStatus(msg, kind) {
-  statusEl.textContent = msg || "";
-  statusEl.className = "status" + (kind ? ` ${kind}` : "");
+// ============================
+// CONFIGURATION
+// ============================
+
+// Google Apps Script Web App URL
+const SHEETS_ENDPOINT =
+  "https://script.google.com/macros/s/AKfycby8t8_z_7VCR1DAasNl6CemCZF8Ve2XQnrEMlKA1GWFj-C9MhlEr-4KybSrzL90X2HK/exec";
+
+
+// Jobindex search URL template
+// Replace with real template later
+const JOBINDEX_URL_TEMPLATE =
+  "https://www.jobindex.dk/jobsoegning/{location}?q={job}";
+
+
+// ============================
+// UTILITIES
+// ============================
+
+function setStatus(message, type) {
+  statusEl.textContent = message || "";
+  statusEl.className = "status";
+
+  if (type) statusEl.classList.add(type);
 }
 
 function updateCounter() {
-  counter.textContent = `${about.value.length}/1200`;
+  const length = about.value.length;
+  counter.textContent = `${length}/1200`;
 }
 
-function loadAll() {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-  } catch {
-    return [];
-  }
+function buildJobindexUrl(job, location) {
+
+  const jobEncoded = encodeURIComponent(job);
+  const locationEncoded = encodeURIComponent(location);
+
+  return JOBINDEX_URL_TEMPLATE
+    .replace("{job}", jobEncoded)
+    .replace("{location}", locationEncoded);
+
 }
 
-function saveAll(list) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-  savedCountEl.textContent = String(list.length);
+
+// ============================
+// GOOGLE SHEETS SUBMISSION
+// ============================
+
+async function postToSheets(payload) {
+
+  const body = new URLSearchParams();
+
+  Object.entries(payload).forEach(([key, value]) => {
+    body.append(key, String(value ?? ""));
+  });
+
+  await fetch(SHEETS_ENDPOINT, {
+    method: "POST",
+    mode: "no-cors",
+    body
+  });
 }
 
-function refreshCount() {
-  savedCountEl.textContent = String(loadAll().length);
+
+// ============================
+// PARTICIPANT ID
+// ============================
+
+const participantId = getOrCreateParticipantId();
+
+if (participantIdText) {
+  participantIdText.textContent = participantId;
 }
 
-function download(filename, content, mime) {
-  const blob = new Blob([content], { type: mime });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-
-  URL.revokeObjectURL(url);
-}
-
-function toJsonl(list) {
-  return list.map((x) => JSON.stringify(x)).join("\n") + (list.length ? "\n" : "");
-}
-
-function toCsv(list) {
-  // Minimal CSV export (escaped)
-  const headers = ["participantId", "createdAt", "role", "location", "about"];
-  const esc = (v) => {
-    const s = String(v ?? "");
-    const safe = s.replace(/"/g, '""');
-    return `"${safe}"`;
-  };
-
-  const rows = list.map((x) =>
-    headers.map((h) => esc(x[h])).join(",")
-  );
-
-  return [headers.join(","), ...rows].join("\n") + "\n";
-}
-
-// OPTIONAL: show a warning if user types obvious PII
-function containsLikelyPII(text) {
-  const t = String(text ?? "");
-  const email = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(t);
-  const url = /\bhttps?:\/\/\S+\b/i.test(t) || /\bwww\.\S+\b/i.test(t);
-  const phone = /(\+?\d[\d\s().-]{7,}\d)/.test(t);
-  return email || url || phone;
-}
-
-about.addEventListener("input", () => {
-  updateCounter();
-  if (containsLikelyPII(about.value)) {
-    setStatus("Reminder: Please avoid personal info. It will be redacted on save.", "");
-  } else {
-    // keep status if it's an error/ok, otherwise clear gentle reminders
-    if (!statusEl.classList.contains("error") && !statusEl.classList.contains("ok")) {
-      setStatus("", "");
+if (copyPidBtn) {
+  copyPidBtn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(participantId);
+      setStatus("Participant ID copied.", "ok");
+    } catch {
+      setStatus("Could not copy participant ID.", "error");
     }
-  }
-});
+  });
+}
 
+
+// ============================
+// EVENTS
+// ============================
+
+about.addEventListener("input", updateCounter);
 updateCounter();
-refreshCount();
 
-resetBtn.addEventListener("click", () => {
+resetBtn?.addEventListener("click", () => {
   form.reset();
   updateCounter();
   setStatus("");
   role.focus();
 });
 
-exportJsonlBtn.addEventListener("click", () => {
-  const list = loadAll();
-  if (!list.length) return setStatus("No local responses to export yet.", "error");
-  download("job_prompt_responses.jsonl", toJsonl(list), "application/jsonl");
-  setStatus("Exported JSONL.", "ok");
-});
 
-exportCsvBtn.addEventListener("click", () => {
-  const list = loadAll();
-  if (!list.length) return setStatus("No local responses to export yet.", "error");
-  download("job_prompt_responses.csv", toCsv(list), "text/csv");
-  setStatus("Exported CSV.", "ok");
-});
-
-clearLocalBtn.addEventListener("click", () => {
-  localStorage.removeItem(STORAGE_KEY);
-  refreshCount();
-  setStatus("Cleared local responses.", "ok");
-});
+// ============================
+// FORM SUBMISSION
+// ============================
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
+
   setStatus("");
 
   const raw = {
     role: role.value.trim(),
     location: locationInput.value.trim(),
-    about: about.value.trim(),
+    about: about.value.trim()
   };
 
-  if (!raw.role) return setStatus("Please enter the job you are looking for.", "error"), role.focus();
-  if (!raw.location) return setStatus("Please enter where you want to work.", "error"), locationInput.focus();
-  if (raw.about.length < 30) return setStatus("Please write a little more detail (at least ~30 characters).", "error"), about.focus();
-  if (!consent.checked) return setStatus("Consent is required to save your anonymized response.", "error");
+  // Validation
+  if (!raw.role) {
+    setStatus("Please enter the job you are looking for.", "error");
+    role.focus();
+    return;
+  }
 
+  if (!raw.location) {
+    setStatus("Please enter where you want to work.", "error");
+    locationInput.focus();
+    return;
+  }
+
+  if (raw.about.length < 30) {
+    setStatus("Please write a bit more about your experience.", "error");
+    about.focus();
+    return;
+  }
+
+  if (!consent.checked) {
+    setStatus("Consent is required to submit.", "error");
+    return;
+  }
+
+  // Generate submission id
+  const submissionId = randomId("s");
+
+  // Prepare anonymized payload
   const payload = {
-    participantId: randomParticipantId(),
+    participantId: participantId,
+    submissionId: submissionId,
     createdAt: new Date().toISOString(),
     role: anonymizeText(raw.role),
     location: anonymizeText(raw.location),
     about: anonymizeText(raw.about),
-    consent: true,
+    consent: true
   };
 
-  // Save locally (good for dev + backup)
-  const list = loadAll();
-  list.push(payload);
-  saveAll(list);
+  try {
 
-const ENDPOINT = "https://script.google.com/macros/s/AKfycby8t8_z_7VCR1DAasNl6CemCZF8Ve2XQnrEMlKA1GWFj-C9MhlEr-4KybSrzL90X2HK/exec";
+    await postToSheets(payload);
 
-try {
+    setStatus("Response saved. Opening Jobindex results...", "ok");
 
-  await fetch(ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(payload)
-  });
+    // Open Jobindex search results
+    const url = buildJobindexUrl(raw.role, raw.location);
+    window.open(url, "_blank");
 
-} catch (err) {
-  console.error("Upload failed", err);
-}
+    form.reset();
+    updateCounter();
 
-  setStatus("Saved (anonymized). Thank you!", "ok");
-  form.reset();
-  updateCounter();
+  } catch (err) {
+
+    console.error(err);
+    setStatus("Could not send data. Please try again.", "error");
+
+  }
 });
