@@ -237,7 +237,7 @@ form?.addEventListener("submit", async (e) => {
 
     setStatus("Saved · prompt generated");
     setAria("Saved and generated.");
-    showToast("Saved to Supabase ✓");
+    showToast("Prompt Generated ✓");
   } catch (err) {
     console.error(err);
     setStatus("Error · not saved");
@@ -252,4 +252,5 @@ form?.addEventListener("submit", async (e) => {
 // initial paint
 updatePreview();
 lockPrompt();
+
 setStatus("Draft · not submitted");
