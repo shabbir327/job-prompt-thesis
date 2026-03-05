@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Job Prompt Studio</title>
+  <meta name="description" content="A classy, minimal job prompt form." />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <h1>Job Prompt Studio</h1>
+      </div>
+      <div class="pill" id="statusPill">Draft · not submitted</div>
+    </header>
+
+    <section class="hero">
+      <!-- Left: Form -->
+      <div class="panel">
+        <div class="top">
+          <p class="kicker">Simple in. Powerful out.</p>
+          <h2 class="title">Describe the job you want.</h2>
+          <p class="subtitle">
+            Share what you’re aiming for, where you want to work, and what makes you you.
+            We’ll format it into a clean prompt you can reuse.
+          </p>
+        </div>
+
+        <form id="jobForm" autocomplete="on">
+          <!-- 1. What job -->
+          <div class="field">
+            <label for="role">1) What job are you looking for?</label>
+            <input
+              id="role"
+              name="role"
+              type="text"
+              placeholder="e.g., Product Manager, Backend Engineer, UX Designer"
+              maxlength="120"
+              required
+            />
+          </div>
+
+          <!-- 2. Location -->
+          <div class="row">
+            <div class="field">
+              <label for="location">2) Where do you want to work?</label>
+              <input
+                id="location"
+                name="location"
+                type="text"
+                placeholder="e.g., Copenhagen, Remote (EU), New York"
+                maxlength="120"
+                required
+              />
+            </div>
+
+            <div class="field">
+              <label for="workMode">Work mode (optional)</label>
+              <input
+                id="workMode"
+                name="workMode"
+                type="text"
+                placeholder="e.g., Remote, Hybrid, On-site"
+                maxlength="60"
+              />
+            </div>
+          </div>
+
+          <!-- 3. Experience -->
+          <div class="field">
+            <label for="experience">3) Past experience & interests</label>
+            <textarea
+              id="experience"
+              name="experience"
+              placeholder="Write a few lines about your experience, strengths, industries, tools, and what you’re excited about."
+              maxlength="1200"
+              required
+            ></textarea>
+          </div>
+
+          <!-- Consent -->
+          <div class="field">
+            <label class="consent">
+              <input id="consent" type="checkbox" required />
+              <span>
+                I consent to storing this information for educational purposes.
+                <span class="consent-sub">
+                  You can withdraw by contacting the site owner.
+                </span>
+              </span>
+            </label>
+          </div>
+
+          <div class="actions">
+            <div class="hint">
+              Tip: be specific (industry, seniority, tools, outcomes). Keep it human.
+            </div>
+            <div class="btnRow">
+              <button class="btn" type="button" id="resetBtn">Reset</button>
+              <button class="btn primary" type="submit" id="generateBtn">Generate</button>
+            </div>
+          </div>
+
+          <span class="sr-only" aria-live="polite" id="ariaLive"></span>
+        </form>
+      </div>
+
+      <!-- Right: Live Summary -->
+      <aside class="panel summary" aria-label="Live prompt preview">
+        <div class="top">
+          <p class="kicker">Preview</p>
+          <h2 class="title titleSmall">Your prompt, polished.</h2>
+          <p class="subtitle subtitleWide">
+            This updates as you type. Click <b>Generate</b> to reveal the final prompt and save it.
+          </p>
+        </div>
+
+        <div class="mini">
+          <div class="card">
+            <h3>Role</h3>
+            <p id="previewRole">—</p>
+          </div>
+          <div class="card">
+            <h3>Location</h3>
+            <p id="previewLocation">—</p>
+          </div>
+          <div class="card">
+            <h3>Experience & interests</h3>
+            <p id="previewExperience">—</p>
+          </div>
+
+          <div class="card">
+            <h3>Final prompt</h3>
+
+            <!-- Locked hint -->
+            <p id="lockedPromptHint" class="lockedHint">
+              Click <b>Generate</b> to reveal your final prompt (and save it).
+            </p>
+
+            <!-- Hidden until saved -->
+            <p id="previewPrompt" class="finalPrompt" style="display:none;"></p>
+          </div>
+
+          <div class="btnRow">
+            <button class="btn" type="button" id="copyBtn">Copy prompt</button>
+          </div>
+        </div>
+
+        <div class="meta">
+          <span id="charCount">0 / 1200</span>
+          <span id="lastSaved">Live preview</span>
+        </div>
+      </aside>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">
+    <span class="dot" aria-hidden="true"></span>
+    <span id="toastText">Copied</span>
+  </div>
+
+  <!-- JS -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
