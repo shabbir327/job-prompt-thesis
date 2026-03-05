@@ -58,33 +58,6 @@ function setAria(text) {
   if (ariaLive) ariaLive.textContent = text || "";
 }
 
-// Location normalization (kept from your existing JS)
-function normalizeLocation(location) {
-  const map = {
-    "copenhagen": "koebenhavn",
-    "københavn": "koebenhavn",
-    "kobenhavn": "koebenhavn",
-    "kbh": "koebenhavn",
-    "aarhus": "aarhus",
-    "århus": "aarhus",
-    "odense": "odense",
-    "aalborg": "aalborg",
-    "ålborg": "aalborg",
-  };
-
-  const cleaned = (location || "")
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-
-  // Allow multiple locations separated by comma
-  const parts = cleaned.split(",").map((p) => p.trim()).filter(Boolean);
-  const mapped = parts.map((p) => map[p] || p);
-
-  return mapped.join(", ");
-}
-
 function buildPrompt({ role, about }) {
   return [
     "Help me find roles that match this profile:",
@@ -140,10 +113,10 @@ async function insertResponse(payload) {
 function onEdit() {
   updatePreview();
   setStatus("Draft · editing");
-  lockPrompt(); // ensure prompt stays hidden when editing after generation
+  lockPrompt();
 }
 
-[role, locationEl, workMode, experience, consentEl].forEach((el) => {
+[role, experience, consentEl].forEach((el) => {
   if (!el) return;
   el.addEventListener("input", onEdit);
   el.addEventListener("change", onEdit);
@@ -158,7 +131,6 @@ resetBtn?.addEventListener("click", () => {
 });
 
 copyBtn?.addEventListener("click", async () => {
-  // Copy only if prompt is revealed
   if (!previewPrompt || previewPrompt.style.display === "none") {
     showToast("Click Generate to reveal the prompt first.");
     return;
@@ -176,7 +148,7 @@ copyBtn?.addEventListener("click", async () => {
 form?.addEventListener("submit", async (e) => {
   e.preventDefault();
 
-  // Built-in validation for required inputs + consent checkbox
+  // Built-in validation for required fields + consent checkbox
   if (!form.reportValidity()) {
     showToast("Please complete the form (including consent).");
     return;
@@ -185,7 +157,7 @@ form?.addEventListener("submit", async (e) => {
   const rawRole = clean(role.value);
   const rawAbout = clean(experience.value);
 
-  // Extra guard (keeps your previous "write a bit more" UX)
+  // A small quality guard (optional but nice)
   if (rawAbout.length < 30) {
     showToast("Please write a bit more (a few sentences is perfect).");
     experience.focus();
@@ -196,11 +168,7 @@ form?.addEventListener("submit", async (e) => {
   setAria("Saving your submission.");
 
   // Build prompt text to reveal AFTER successful save
-  const locationLine = [rawLocation, rawMode ? `(${rawMode})` : ""].filter(Boolean).join(" ");
-  const promptText = buildPrompt({
-  role: rawRole,
-  about: rawAbout
-});
+  const promptText = buildPrompt({ role: rawRole, about: rawAbout });
 
   // Payload saved to Supabase (anonymized)
   const payload = {
@@ -208,7 +176,7 @@ form?.addEventListener("submit", async (e) => {
     submission_id: randomId("s"),
     role: anonymizeText(rawRole),
     about: anonymizeText(rawAbout),
-    consent: true,
+    consent: true
   };
 
   try {
@@ -216,12 +184,11 @@ form?.addEventListener("submit", async (e) => {
 
     await insertResponse(payload);
 
-    // Reveal only after successful insert
     revealPrompt(promptText);
 
     setStatus("Saved · prompt generated");
     setAria("Saved and generated.");
-    showToast("Thanks for your prompt response ✨");
+    showToast("Thank you for your prompt response.");
   } catch (err) {
     console.error(err);
     setStatus("Error · not saved");
