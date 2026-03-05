@@ -6,14 +6,11 @@ const $ = (sel) => document.querySelector(sel);
 // --- Form inputs
 const form = $("#jobForm");
 const role = $("#role");
-const locationEl = $("#location");
-const workMode = $("#workMode");
 const experience = $("#experience");
 const consentEl = $("#consent");
 
 // --- Preview fields
 const previewRole = $("#previewRole");
-const previewLocation = $("#previewLocation");
 const previewExperience = $("#previewExperience");
 
 // Final prompt (locked until Generate + save succeeds)
@@ -88,12 +85,11 @@ function normalizeLocation(location) {
   return mapped.join(", ");
 }
 
-function buildPrompt({ role, location, about }) {
+function buildPrompt({ role, about }) {
   return [
     "Help me find roles that match this profile:",
     "",
     `• Target role: ${role || "—"}`,
-    `• Location preference: ${location || "—"}`,
     "",
     "About me (experience & interests):",
     about || "—",
@@ -126,16 +122,14 @@ function updateCounter() {
 
 function updatePreview() {
   const r = clean(role?.value);
-  const loc = clean(locationEl?.value);
-  const mode = clean(workMode?.value);
   const aboutTxt = clean(experience?.value);
 
   if (previewRole) previewRole.textContent = r || "—";
+  if (previewExperience) previewExperience.textContent = aboutTxt || "—";
 
-  if (previewLocation) {
-    const locLine = [loc, mode ? `(${mode})` : ""].filter(Boolean).join(" ");
-    previewLocation.textContent = locLine || "—";
-  }
+  updateCounter();
+  if (lastSaved) lastSaved.textContent = `Updated ${nowStamp()}`;
+}
 
   if (previewExperience) previewExperience.textContent = aboutTxt || "—";
 
@@ -195,8 +189,6 @@ form?.addEventListener("submit", async (e) => {
   }
 
   const rawRole = clean(role.value);
-  const rawLocation = clean(locationEl.value);
-  const rawMode = clean(workMode.value);
   const rawAbout = clean(experience.value);
 
   // Extra guard (keeps your previous "write a bit more" UX)
@@ -212,17 +204,15 @@ form?.addEventListener("submit", async (e) => {
   // Build prompt text to reveal AFTER successful save
   const locationLine = [rawLocation, rawMode ? `(${rawMode})` : ""].filter(Boolean).join(" ");
   const promptText = buildPrompt({
-    role: rawRole,
-    location: locationLine,
-    about: rawAbout
-  });
+  role: rawRole,
+  about: rawAbout
+});
 
   // Payload saved to Supabase (anonymized)
   const payload = {
     participant_id: participantId,
     submission_id: randomId("s"),
     role: anonymizeText(rawRole),
-    location: normalizeLocation(anonymizeText(locationLine)),
     about: anonymizeText(rawAbout),
     consent: true,
   };
@@ -237,7 +227,7 @@ form?.addEventListener("submit", async (e) => {
 
     setStatus("Saved · prompt generated");
     setAria("Saved and generated.");
-    showToast("Prompt Generated ✓");
+    showToast("Thanks for your prompt response ✨");
   } catch (err) {
     console.error(err);
     setStatus("Error · not saved");
@@ -252,5 +242,4 @@ form?.addEventListener("submit", async (e) => {
 // initial paint
 updatePreview();
 lockPrompt();
-
 setStatus("Draft · not submitted");
