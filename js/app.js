@@ -13,9 +13,12 @@ const consentEl = $("#consent");
 const previewRole = $("#previewRole");
 const previewExperience = $("#previewExperience");
 
-// Final prompt (locked until Generate + save succeeds)
-const previewPrompt = $("#previewPrompt");
-const lockedPromptHint = $("#lockedPromptHint");
+// --- Suggested jobs UI
+const jobsHint = $("#jobsHint");
+const jobsStatus = $("#jobsStatus");
+const jobsSkeleton = $("#jobsSkeleton");
+const jobsList = $("#jobsList");
+const jobindexAllLink = $("#jobindexAllLink");
 
 // --- UI bits
 const statusPill = $("#statusPill");
@@ -24,7 +27,7 @@ const lastSaved = $("#lastSaved");
 const ariaLive = $("#ariaLive");
 
 const resetBtn = $("#resetBtn");
-const generateBtn = $("#generateBtn");
+const findJobsBtn = $("#generateBtn");
 const copyBtn = $("#copyBtn");
 
 const toast = $("#toast");
@@ -33,9 +36,7 @@ const toastText = $("#toastText");
 const participantId = getOrCreateParticipantId();
 
 // ---------------- helpers ----------------
-function clean(v) {
-  return (v || "").trim();
-}
+function clean(v) { return (v || "").trim(); }
 
 function nowStamp() {
   const d = new Date();
@@ -58,33 +59,13 @@ function setAria(text) {
   if (ariaLive) ariaLive.textContent = text || "";
 }
 
-function buildPrompt({ role, about }) {
-  return [
-    "Help me find roles that match this profile:",
-    "",
-    `• Target role: ${role || "—"}`,
-    "",
-    "About me (experience & interests):",
-    about || "—",
-    "",
-    "Please suggest:",
-    "1) 8–12 relevant job titles (including adjacent roles),",
-    "2) what keywords/skills to highlight,",
-    "3) which industries/companies might fit,",
-    "4) a short outreach message I can send to a recruiter."
-  ].join("\n");
+function roleToJobIndexQuery(roleText) {
+  return encodeURIComponent(clean(roleText)).replace(/%20/g, "+");
 }
 
-function lockPrompt() {
-  if (previewPrompt) previewPrompt.style.display = "none";
-  if (lockedPromptHint) lockedPromptHint.style.display = "block";
-}
-
-function revealPrompt(text) {
-  if (!previewPrompt) return;
-  previewPrompt.textContent = text;
-  previewPrompt.style.display = "block";
-  if (lockedPromptHint) lockedPromptHint.style.display = "none";
+function jobIndexUrlForRole(roleText) {
+  const q = roleToJobIndexQuery(roleText);
+  return `https://www.jobindex.dk/jobsoegning?q=${q}`;
 }
 
 function updateCounter() {
@@ -109,11 +90,79 @@ async function insertResponse(payload) {
   if (error) throw error;
 }
 
+async function fetchTopJobs(roleText) {
+  const q = clean(roleText);
+  if (!q) return [];
+
+  const { data, error } = await supabase.functions.invoke("jobindex-top3", {
+    body: { q }
+  });
+
+  if (error) throw error;
+  return data?.jobs || [];
+}
+
+function setJobsUI({ state = "idle", message = "", jobs = [] } = {}) {
+  // states: idle | loading | ready | empty | error
+
+  if (jobsHint) jobsHint.style.display = (state === "idle") ? "block" : "none";
+
+  if (jobsStatus) {
+    const show = (state === "loading" || state === "empty" || state === "error");
+    jobsStatus.style.display = show ? "block" : "none";
+    jobsStatus.textContent = message || "";
+  }
+
+  if (jobsSkeleton) jobsSkeleton.style.display = (state === "loading") ? "grid" : "none";
+
+  if (jobsList) {
+    jobsList.style.display = (state === "ready" && jobs.length) ? "grid" : "none";
+    jobsList.innerHTML = "";
+
+    for (const job of jobs) {
+      const card = document.createElement("div");
+      card.className = "jobCard";
+
+      const title = document.createElement("p");
+      title.className = "jobTitle";
+      title.textContent = job.title || "Job listing";
+
+      const meta = document.createElement("p");
+      meta.className = "jobMeta";
+      meta.textContent = [job.company, job.location].filter(Boolean).join(" · ");
+
+      const snippet = document.createElement("p");
+      snippet.className = "jobSnippet";
+      snippet.textContent = job.snippet || "";
+
+      const btnRow = document.createElement("div");
+      btnRow.className = "jobBtnRow";
+
+      const btn = document.createElement("a");
+      btn.className = "jobBtn";
+      btn.href = job.url;
+      btn.target = "_blank";
+      btn.rel = "noopener noreferrer";
+      btn.textContent = "Open job →";
+
+      btnRow.appendChild(btn);
+
+      card.appendChild(title);
+      card.appendChild(meta);
+      if (job.snippet) card.appendChild(snippet);
+      card.appendChild(btnRow);
+
+      jobsList.appendChild(card);
+    }
+  }
+}
+
 // ---------------- events ----------------
 function onEdit() {
   updatePreview();
   setStatus("Draft · editing");
-  lockPrompt();
+  setJobsUI({ state: "idle" });
+  if (jobindexAllLink) jobindexAllLink.href = "#";
 }
 
 [role, experience, consentEl].forEach((el) => {
@@ -126,29 +175,29 @@ resetBtn?.addEventListener("click", () => {
   form.reset();
   updatePreview();
   setStatus("Draft · not submitted");
-  lockPrompt();
+  setJobsUI({ state: "idle" });
+  if (jobindexAllLink) jobindexAllLink.href = "#";
   role?.focus();
 });
 
 copyBtn?.addEventListener("click", async () => {
-  if (!previewPrompt || previewPrompt.style.display === "none") {
-    showToast("Click Generate to reveal the prompt first.");
-    return;
-  }
+  const r = clean(role.value);
+  const about = clean(experience.value);
+  if (!r || !about) return showToast("Fill in role + experience first.");
 
+  const text = `Role: ${r}\n\nExperience & interests:\n${about}`;
   try {
-    await navigator.clipboard.writeText(previewPrompt.textContent || "");
+    await navigator.clipboard.writeText(text);
     showToast("Copied to clipboard");
   } catch {
     showToast("Could not copy");
   }
 });
 
-// Generate => validate => save => reveal
+// Find jobs => save => loading => fetch => render
 form?.addEventListener("submit", async (e) => {
   e.preventDefault();
 
-  // Built-in validation for required fields + consent checkbox
   if (!form.reportValidity()) {
     showToast("Please complete the form (including consent).");
     return;
@@ -157,7 +206,6 @@ form?.addEventListener("submit", async (e) => {
   const rawRole = clean(role.value);
   const rawAbout = clean(experience.value);
 
-  // A small quality guard (optional but nice)
   if (rawAbout.length < 30) {
     showToast("Please write a bit more (a few sentences is perfect).");
     experience.focus();
@@ -167,10 +215,8 @@ form?.addEventListener("submit", async (e) => {
   setStatus("Saving · please wait");
   setAria("Saving your submission.");
 
-  // Build prompt text to reveal AFTER successful save
-  const promptText = buildPrompt({ role: rawRole, about: rawAbout });
+  if (jobindexAllLink) jobindexAllLink.href = jobIndexUrlForRole(rawRole);
 
-  // Payload saved to Supabase (anonymized)
   const payload = {
     participant_id: participantId,
     submission_id: randomId("s"),
@@ -180,27 +226,37 @@ form?.addEventListener("submit", async (e) => {
   };
 
   try {
-    if (generateBtn) generateBtn.disabled = true;
+    if (findJobsBtn) findJobsBtn.disabled = true;
 
     await insertResponse(payload);
 
-    revealPrompt(promptText);
+    setStatus("Finding jobs…");
+    setAria("Finding the best jobs for you.");
+    setJobsUI({ state: "loading", message: "Finding the jobs that best fit you…" });
 
-    setStatus("Saved · prompt generated");
-    setAria("Saved and generated.");
+    const jobs = await fetchTopJobs(rawRole);
+
+    if (!jobs.length) {
+      setJobsUI({ state: "empty", message: "No results found. Try a different role keyword." });
+      setStatus("Saved · no results");
+    } else {
+      setJobsUI({ state: "ready", jobs });
+      setStatus("Saved · suggestions ready");
+    }
+
     showToast("Thank you for your prompt response.");
   } catch (err) {
     console.error(err);
-    setStatus("Error · not saved");
-    setAria("Save failed.");
-    showToast(err?.message ? `Could not save: ${err.message}` : "Could not save. Check Supabase / RLS.");
-    lockPrompt();
+    setStatus("Error");
+    setAria("Something went wrong.");
+    setJobsUI({ state: "error", message: "Could not load jobs right now. Please try again." });
+    showToast(err?.message ? `Error: ${err.message}` : "Something went wrong.");
   } finally {
-    if (generateBtn) generateBtn.disabled = false;
+    if (findJobsBtn) findJobsBtn.disabled = false;
   }
 });
 
 // initial paint
 updatePreview();
-lockPrompt();
+setJobsUI({ state: "idle" });
 setStatus("Draft · not submitted");
