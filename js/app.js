@@ -131,12 +131,6 @@ function updatePreview() {
   if (lastSaved) lastSaved.textContent = `Updated ${nowStamp()}`;
 }
 
-  if (previewExperience) previewExperience.textContent = aboutTxt || "—";
-
-  updateCounter();
-  if (lastSaved) lastSaved.textContent = `Updated ${nowStamp()}`;
-}
-
 async function insertResponse(payload) {
   const { error } = await supabase.from("jobprompt").insert([payload]);
   if (error) throw error;
