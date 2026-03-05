@@ -12,6 +12,7 @@
 
 *{ box-sizing:border-box; }
 html,body{ height:100%; }
+
 body{
   margin:0;
   color:var(--text);
@@ -95,6 +96,7 @@ header{
   gap: 22px;
   align-items:stretch;
 }
+
 @media (max-width: 920px){
   .hero{ grid-template-columns: 1fr; }
 }
@@ -131,6 +133,7 @@ header{
   letter-spacing:-.02em;
   font-weight:650;
 }
+
 .titleSmall{ font-size:22px; }
 
 .subtitle{
@@ -140,6 +143,7 @@ header{
   line-height:1.5;
   max-width: 52ch;
 }
+
 .subtitleWide{ max-width:none; }
 
 form{
@@ -155,6 +159,7 @@ form{
   padding: 14px 14px 12px;
   transition: border-color .2s ease, transform .2s ease, background .2s ease;
 }
+
 .field:focus-within{
   border-color: rgba(255,255,255,.22);
   background: rgba(0,0,0,.22);
@@ -180,17 +185,13 @@ input, textarea{
   padding: 0;
   caret-color: rgba(255,255,255,.9);
 }
-textarea{ min-height: 120px; resize: vertical; }
-::placeholder{ color: rgba(245,245,247,.40); }
 
-.row{
-  display:grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+textarea{
+  min-height: 140px; /* slightly taller now that it’s a 2-field form */
+  resize: vertical;
 }
-@media (max-width: 520px){
-  .row{ grid-template-columns: 1fr; }
-}
+
+::placeholder{ color: rgba(245,245,247,.40); }
 
 .actions{
   margin-top: 4px;
@@ -226,15 +227,24 @@ textarea{ min-height: 120px; resize: vertical; }
   font-weight:600;
   letter-spacing:-.01em;
   cursor:pointer;
-  transition: transform .18s ease, background .18s ease, border-color .18s ease;
+  transition: transform .18s ease, background .18s ease, border-color .18s ease, opacity .18s ease;
   user-select:none;
 }
+
 .btn:hover{
   transform: translateY(-1px);
   background: rgba(255,255,255,.09);
   border-color: rgba(255,255,255,.18);
 }
+
 .btn:active{ transform: translateY(0px) scale(.99); }
+
+.btn:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+  transform:none;
+}
+
 .btn.primary{
   background: linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.06));
   border-color: rgba(255,255,255,.22);
@@ -245,8 +255,14 @@ textarea{ min-height: 120px; resize: vertical; }
   flex-direction:column;
   min-height: 100%;
 }
+
 .summary .top{ padding: 22px 22px 16px; }
-.mini{ padding: 18px 22px 22px; display:grid; gap:12px; }
+
+.mini{
+  padding: 18px 22px 22px;
+  display:grid;
+  gap:12px;
+}
 
 .card{
   border-radius: 18px;
@@ -254,6 +270,7 @@ textarea{ min-height: 120px; resize: vertical; }
   background: rgba(0,0,0,.18);
   padding: 14px 14px 12px;
 }
+
 .card h3{
   margin:0 0 6px;
   font-size: 12px;
@@ -262,6 +279,7 @@ textarea{ min-height: 120px; resize: vertical; }
   letter-spacing:.08em;
   text-transform:uppercase;
 }
+
 .card p{
   margin:0;
   font-size: 15px;
@@ -276,6 +294,7 @@ textarea{ min-height: 120px; resize: vertical; }
   font-size: 13px;
   line-height:1.45;
 }
+
 .finalPrompt{
   color: rgba(245,245,247,.88);
 }
@@ -293,6 +312,28 @@ textarea{ min-height: 120px; resize: vertical; }
   padding-top: 14px;
 }
 
+/* Consent checkbox row */
+.consent{
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+  cursor:pointer;
+  margin:0;
+}
+
+.consent input{
+  width:auto;
+  margin-top: 2px;
+}
+
+.consent-sub{
+  display:block;
+  margin-top:6px;
+  color: rgba(245,245,247,.55);
+  font-size:12px;
+}
+
+/* Toast */
 .toast{
   position: fixed;
   left: 50%;
@@ -315,33 +356,17 @@ textarea{ min-height: 120px; resize: vertical; }
   gap:10px;
   align-items:center;
 }
+
 .toast.show{
   opacity: 1;
   transform: translateX(-50%) translateY(0px);
 }
+
 .dot{
   width:10px; height:10px; border-radius:999px;
   background: rgba(255,255,255,.55);
   box-shadow: 0 0 0 4px rgba(255,255,255,.10);
   flex: 0 0 auto;
-}
-
-.consent{
-  display:flex;
-  gap:10px;
-  align-items:flex-start;
-  cursor:pointer;
-  margin:0;
-}
-.consent input{
-  width:auto;
-  margin-top: 2px;
-}
-.consent-sub{
-  display:block;
-  margin-top:6px;
-  color: rgba(245,245,247,.55);
-  font-size:12px;
 }
 
 .sr-only{
