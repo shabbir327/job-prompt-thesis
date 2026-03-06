@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Job Prompt Studio</title>
+  <title>Job Prompt Studio - Thesis Prototype V1.0</title>
   <meta name="description" content="A classy, minimal job prompt form." />
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
@@ -26,7 +26,7 @@
           <h2 class="title">Describe the job you want.</h2>
           <p class="subtitle">
             Share what you’re aiming for, and what makes you you.
-            We’ll format it into a clean prompt you can reuse.
+            We’ll find job suggestions based on your role.
           </p>
         </div>
 
@@ -38,7 +38,7 @@
               id="role"
               name="role"
               type="text"
-              placeholder="e.g., Product Manager, Backend Engineer, UX Designer"
+              placeholder="e.g., Data Scientist, Software Engineer, HR, Creative Director"
               maxlength="120"
               required
             />
@@ -59,7 +59,7 @@
           <!-- Consent -->
           <div class="field">
             <label class="consent">
-              <input id="consent" type="checkbox" required />
+              <input id="consent" type="checkbox" required checked/>
               <span>
                 I consent to storing this information for educational purposes.
                 <span class="consent-sub">
@@ -75,7 +75,7 @@
             </div>
             <div class="btnRow">
               <button class="btn" type="button" id="resetBtn">Reset</button>
-              <button class="btn primary" type="submit" id="generateBtn">Generate</button>
+              <button class="btn primary" type="submit" id="generateBtn">Find jobs</button>
             </div>
           </div>
 
@@ -87,9 +87,9 @@
       <aside class="panel summary" aria-label="Live prompt preview">
         <div class="top">
           <p class="kicker">Preview</p>
-          <h2 class="title titleSmall">Your prompt, polished.</h2>
+          <h2 class="title titleSmall">Suggestions, curated.</h2>
           <p class="subtitle subtitleWide">
-            This updates as you type. Click <b>Generate</b> to reveal the final prompt and save it.
+            This updates as you type. Click <b>Find jobs</b> to save your response and fetch the top matches.
           </p>
         </div>
 
@@ -105,19 +105,33 @@
           </div>
 
           <div class="card">
-            <h3>Final prompt</h3>
+            <h3>Suggested Jobs</h3>
 
-            <!-- Locked hint -->
-            <p id="lockedPromptHint" class="lockedHint">
-              Click <b>Generate</b> to reveal your final prompt (and save it).
+            <p id="jobsHint" class="lockedHint">
+              Click <b>Find jobs</b> to save your response and find the best matches.
             </p>
 
-            <!-- Hidden until saved -->
-            <p id="previewPrompt" class="finalPrompt" style="display:none;"></p>
+            <p id="jobsStatus" class="lockedHint" style="display:none;"></p>
+
+            <!-- Loading skeletons -->
+            <div id="jobsSkeleton" class="jobsList" style="display:none;">
+              <div class="skeletonCard"></div>
+              <div class="skeletonCard"></div>
+              <div class="skeletonCard"></div>
+            </div>
+
+            <!-- Results -->
+            <div id="jobsList" class="jobsList" style="display:none;"></div>
+
+            <p class="lockedHint" style="margin-top:10px;">
+              <a id="jobindexAllLink" href="#" target="_blank" rel="noopener noreferrer" class="subLink">
+                View all results on Jobindex →
+              </a>
+            </p>
           </div>
 
           <div class="btnRow">
-            <button class="btn" type="button" id="copyBtn">Copy prompt</button>
+            <button class="btn" type="button" id="copyBtn">Copy role + interests</button>
           </div>
         </div>
 
@@ -134,7 +148,7 @@
     <span id="toastText">Copied</span>
   </div>
 
-  <!-- JS -->
   <script type="module" src="./js/app.js"></script>
 </body>
 </html>
+
