@@ -90,6 +90,18 @@ async function insertResponse(payload) {
   if (error) throw error;
 }
 
+async function buildMultilingualQuery(roleText, aboutText) {
+  const { data, error } = await supabase.functions.invoke("mistral-query-builder", {
+    body: {
+      role: roleText,
+      about: aboutText
+    }
+  });
+
+  if (error) throw error;
+  return data;
+}
+
 async function fetchTopJobs(roleText) {
   const q = clean(roleText);
   if (!q) return [];
@@ -234,7 +246,17 @@ form?.addEventListener("submit", async (e) => {
     setAria("Finding the best jobs for you.");
     setJobsUI({ state: "loading", message: "Finding the jobs that best fit you…" });
 
-    const jobs = await fetchTopJobs(rawRole);
+    let finalQuery = rawRole;
+
+    try {
+      const llm = await buildMultilingualQuery(rawRole, rawAbout);
+      finalQuery = llm?.jobindex_query || rawRole;
+      console.log("Mistral query builder output:", llm);
+    } catch (e) {
+      console.error("Mistral fallback to raw role:", e);
+    }
+    
+    const jobs = await fetchTopJobs(finalQuery);
 
     if (!jobs.length) {
       setJobsUI({ state: "empty", message: "No results found. Try a different role keyword." });
@@ -260,3 +282,4 @@ form?.addEventListener("submit", async (e) => {
 updatePreview();
 setJobsUI({ state: "idle" });
 setStatus("Draft · not submitted");
+
