@@ -29,7 +29,6 @@ const experience = $("#experience");
 
 // ---------------- CV inputs ----------------
 const cvFile = $("#cvFile");
-const cvPaste = $("#cvPaste");
 
 // ---------------- shared inputs ----------------
 const consentEl = $("#consent");
@@ -130,9 +129,7 @@ function currentInputSummary() {
   return {
     modeLabel: "PDF CV Upload",
     roleText: file ? summarizeFilename(file) : "CV-based recommendation",
-    contentText: file
-      ? `Uploaded PDF CV: ${summarizeFilename(file)}`
-      : "—"
+    contentText: file ? `Uploaded PDF CV: ${summarizeFilename(file)}` : "—"
   };
 }
 
@@ -393,7 +390,6 @@ resetBtn?.addEventListener("click", () => {
   form?.reset();
 
   if (cvFile) cvFile.value = "";
-  if (cvPaste) cvPaste.value = "";
 
   clearParsedProfile();
   setJobsUI({ state: "idle" });
@@ -443,7 +439,6 @@ form?.addEventListener("submit", async (e) => {
   try {
     if (submitBtn) submitBtn.disabled = true;
 
-    // ---------- PROMPT MODE ----------
     if (currentMode === "prompt") {
       const submission = getPromptSubmission();
 
@@ -503,7 +498,6 @@ form?.addEventListener("submit", async (e) => {
       return;
     }
 
-    // ---------- CV PDF MODE ----------
     const submission = getCvSubmission();
 
     setStatus("Uploading CV…");
