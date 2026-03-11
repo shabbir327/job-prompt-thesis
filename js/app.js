@@ -52,7 +52,7 @@ const jobindexAllLink = $("#jobindexAllLink");
 
 const participantId = getOrCreateParticipantId();
 
-let currentMode = "prompt"; // "prompt" | "cv"
+let currentMode = "prompt";
 
 // ---------------- helpers ----------------
 function clean(v) {
@@ -90,13 +90,11 @@ function updateCounter() {
     return;
   }
 
-  const max = Number(cvPaste?.maxLength || 6000);
-  const used = cvPaste?.value?.length || 0;
-  charCount.textContent = `${used} / ${max}`;
+  charCount.textContent = cvFile?.files?.[0] ? "PDF selected" : "No PDF selected";
 }
 
-function roleToJobIndexQuery(roleText) {
-  return encodeURIComponent(clean(roleText)).replace(/%20/g, "+");
+function roleToJobIndexQuery(text) {
+  return encodeURIComponent(clean(text)).replace(/%20/g, "+");
 }
 
 function jobIndexUrlForQuery(queryText) {
@@ -127,20 +125,18 @@ function currentInputSummary() {
     };
   }
 
-  const pasted = clean(cvPaste?.value);
-  const fileLabel = cvFile?.files?.[0] ? summarizeFilename(cvFile.files[0]) : "";
-  const content = pasted || (fileLabel ? `Uploaded CV: ${fileLabel}` : "—");
+  const file = cvFile?.files?.[0] || null;
 
   return {
-    modeLabel: "CV Upload",
-    roleText: fileLabel || "CV-based recommendation",
-    contentText: content
+    modeLabel: "PDF CV Upload",
+    roleText: file ? summarizeFilename(file) : "CV-based recommendation",
+    contentText: file
+      ? `Uploaded PDF CV: ${summarizeFilename(file)}`
+      : "—"
   };
 }
 
 function setJobsUI({ state = "idle", message = "", jobs = [] } = {}) {
-  // states: idle | loading | ready | empty | error
-
   if (jobsHint) jobsHint.style.display = state === "idle" ? "block" : "none";
 
   if (jobsStatus) {
@@ -209,11 +205,17 @@ function renderParsedProfile(data) {
   const sections = [
     ["Detected language", data?.language],
     ["Normalized role", data?.normalized_role],
+    ["Normalized roles", Array.isArray(data?.normalized_roles) ? data.normalized_roles.join(", ") : ""],
     ["Danish keywords", Array.isArray(data?.danish_keywords) ? data.danish_keywords.join(", ") : ""],
     ["English keywords", Array.isArray(data?.english_keywords) ? data.english_keywords.join(", ") : ""],
     ["Adjacent roles", Array.isArray(data?.adjacent_roles) ? data.adjacent_roles.join(", ") : ""],
     ["Skills", Array.isArray(data?.skills) ? data.skills.join(", ") : ""],
     ["Industries", Array.isArray(data?.industries) ? data.industries.join(", ") : ""],
+    ["Education", Array.isArray(data?.education) ? data.education.join(", ") : ""],
+    ["Languages", Array.isArray(data?.languages) ? data.languages.join(", ") : ""],
+    ["Years of experience", data?.years_experience],
+    ["Seniority", data?.seniority],
+    ["Summary", data?.summary],
     ["Jobindex query", data?.jobindex_query]
   ].filter(([, value]) => clean(value));
 
@@ -293,6 +295,34 @@ async function fetchTopJobs(queryText) {
   return data?.jobs || [];
 }
 
+async function uploadCvPdf(file) {
+  const ext = "pdf";
+  const path = `uploads/${crypto.randomUUID()}.${ext}`;
+
+  const { error: uploadError } = await supabase
+    .storage
+    .from("cvs")
+    .upload(path, file, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: "application/pdf",
+    });
+
+  if (uploadError) throw uploadError;
+
+  const { data } = supabase.storage.from("cvs").getPublicUrl(path);
+  return { path, publicUrl: data.publicUrl };
+}
+
+async function parseCvPdf(pdfUrl) {
+  const { data, error } = await supabase.functions.invoke("parse-cv-pdf", {
+    body: { pdf_url: pdfUrl }
+  });
+
+  if (error) throw error;
+  return data;
+}
+
 function getPromptSubmission() {
   const rawRole = clean(role?.value);
   const rawAbout = clean(experience?.value);
@@ -310,34 +340,24 @@ function getPromptSubmission() {
   return {
     input_type: "prompt",
     rawRole,
-    rawAbout,
-    displayQueryBase: rawRole
+    rawAbout
   };
 }
 
-async function getCvSubmission() {
-  const pasted = clean(cvPaste?.value);
+function getCvSubmission() {
   const file = cvFile?.files?.[0] || null;
 
-  if (!pasted && !file) {
-    throw new Error("Please upload a CV file or paste CV text.");
+  if (!file) {
+    throw new Error("Please upload a PDF CV.");
   }
 
-  // First debug-friendly version:
-  // use pasted text if available; otherwise only use filename placeholder.
-  // Later, we can connect real PDF/DOCX text extraction.
-  const rawRole = file ? `CV upload: ${file.name}` : "CV upload";
-  const rawAbout = pasted || `Uploaded file: ${file.name}`;
-
-  if (clean(rawAbout).length < 30) {
-    throw new Error("Please paste more CV text, or upload a CV and add some text for parsing.");
+  if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+    throw new Error("Only PDF CV files are supported right now.");
   }
 
   return {
-    input_type: "cv",
-    rawRole,
-    rawAbout,
-    displayQueryBase: rawRole
+    input_type: "cv_pdf",
+    file
   };
 }
 
@@ -354,7 +374,7 @@ function onEdit() {
   setStatus("Draft · editing");
 }
 
-[role, experience, consentEl, cvPaste].forEach((el) => {
+[role, experience, consentEl].forEach((el) => {
   if (!el) return;
   el.addEventListener("input", onEdit);
   el.addEventListener("change", onEdit);
@@ -387,7 +407,7 @@ resetBtn?.addEventListener("click", () => {
   if (currentMode === "prompt") {
     role?.focus();
   } else {
-    cvPaste?.focus();
+    cvFile?.focus();
   }
 });
 
@@ -420,50 +440,103 @@ form?.addEventListener("submit", async (e) => {
     return;
   }
 
-  let submission;
-  try {
-    submission = currentMode === "prompt"
-      ? getPromptSubmission()
-      : await getCvSubmission();
-  } catch (err) {
-    showToast(err?.message || "Please complete the required fields.");
-    return;
-  }
-
-  const { input_type, rawRole, rawAbout } = submission;
-
-  setStatus("Saving · please wait");
-  setAria("Saving your submission.");
-
-  const payload = {
-    participant_id: participantId,
-    submission_id: randomId("s"),
-    input_type,
-    role: anonymizeText(rawRole),
-    about: anonymizeText(rawAbout),
-    consent: true
-  };
-
   try {
     if (submitBtn) submitBtn.disabled = true;
 
-    await insertResponse(payload);
+    // ---------- PROMPT MODE ----------
+    if (currentMode === "prompt") {
+      const submission = getPromptSubmission();
 
-    setStatus("Parsing with AI…");
-    setAria("Parsing your input with AI.");
-    clearParsedProfile();
-    setJobsUI({ state: "loading", message: "Parsing your input and finding matching jobs…" });
+      setStatus("Saving · please wait");
+      setAria("Saving your submission.");
 
-    let llm;
-    try {
-      llm = await buildMultilingualQuery(rawRole, rawAbout);
-      renderParsedProfile(llm);
-    } catch (llmErr) {
-      console.error("Mistral parsing failed:", llmErr);
+      const payload = {
+        participant_id: participantId,
+        submission_id: randomId("s"),
+        input_type: submission.input_type,
+        role: anonymizeText(submission.rawRole),
+        about: anonymizeText(submission.rawAbout),
+        consent: true
+      };
+
+      await insertResponse(payload);
+
+      setStatus("Parsing with AI…");
+      setAria("Parsing your input with AI.");
       clearParsedProfile();
+      setJobsUI({ state: "loading", message: "Parsing your input and finding matching jobs…" });
+
+      let llm;
+      try {
+        llm = await buildMultilingualQuery(submission.rawRole, submission.rawAbout);
+        renderParsedProfile(llm);
+      } catch (llmErr) {
+        console.error("Mistral parsing failed:", llmErr);
+        clearParsedProfile();
+      }
+
+      const finalQuery = clean(llm?.jobindex_query) || submission.rawRole;
+
+      if (jobindexAllLink) {
+        jobindexAllLink.href = jobIndexUrlForQuery(finalQuery);
+      }
+
+      setStatus("Finding jobs…");
+      setAria("Finding relevant jobs.");
+
+      const jobs = await fetchTopJobs(finalQuery);
+
+      if (!jobs.length) {
+        setJobsUI({
+          state: "empty",
+          message: "No results found. Try a different role description."
+        });
+        setStatus("Saved · no results");
+      } else {
+        setJobsUI({ state: "ready", jobs });
+        setStatus("Saved · recommendation ready");
+      }
+
+      setAria("Recommendation complete.");
+      if (lastSaved) lastSaved.textContent = `Saved ${nowStamp()}`;
+      showToast("Recommendation ready.");
+      return;
     }
 
-    const finalQuery = clean(llm?.jobindex_query) || rawRole;
+    // ---------- CV PDF MODE ----------
+    const submission = getCvSubmission();
+
+    setStatus("Uploading CV…");
+    setAria("Uploading your CV.");
+
+    const upload = await uploadCvPdf(submission.file);
+
+    setStatus("Saving metadata…");
+    setAria("Saving your submission.");
+
+    const payload = {
+      participant_id: participantId,
+      submission_id: randomId("s"),
+      input_type: "cv_pdf",
+      role: anonymizeText(`CV upload: ${submission.file.name}`),
+      about: anonymizeText(`Uploaded PDF CV: ${submission.file.name}`),
+      consent: true
+    };
+
+    await insertResponse(payload);
+
+    setStatus("Parsing CV with AI…");
+    setAria("Parsing your CV with AI.");
+    clearParsedProfile();
+    setJobsUI({ state: "loading", message: "Reading your PDF CV and finding matching jobs…" });
+
+    const parsedCv = await parseCvPdf(upload.publicUrl);
+    renderParsedProfile(parsedCv);
+
+    const finalQuery =
+      clean(parsedCv?.jobindex_query) ||
+      clean(parsedCv?.normalized_role) ||
+      "job";
 
     if (jobindexAllLink) {
       jobindexAllLink.href = jobIndexUrlForQuery(finalQuery);
@@ -477,7 +550,7 @@ form?.addEventListener("submit", async (e) => {
     if (!jobs.length) {
       setJobsUI({
         state: "empty",
-        message: "No results found. Try a different role description or more detailed CV text."
+        message: "No results found. Try another CV or refine the parsing pipeline."
       });
       setStatus("Saved · no results");
     } else {
@@ -487,7 +560,7 @@ form?.addEventListener("submit", async (e) => {
 
     setAria("Recommendation complete.");
     if (lastSaved) lastSaved.textContent = `Saved ${nowStamp()}`;
-    showToast("Recommendation ready.");
+    showToast("CV recommendation ready.");
   } catch (err) {
     console.error(err);
     setStatus("Error");
