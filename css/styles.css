@@ -454,3 +454,23 @@ textarea{
 .subLink:hover{
   text-decoration:underline;
 }
+
+.footer{
+  width:min(1100px, 92vw);
+  margin:40px auto 0;
+  padding-top:20px;
+  border-top:1px solid rgba(255,255,255,.08);
+  color:rgba(245,245,247,.55);
+  font-size:12px;
+  line-height:1.6;
+}
+
+.footer a{
+  color:rgba(245,245,247,.75);
+  text-decoration:none;
+}
+
+.footer a:hover{
+  text-decoration:underline;
+}
+
