@@ -221,12 +221,16 @@ function renderParsedProfile(data) {
     return;
   }
 
-  parsedProfile.innerHTML = sections.map(([label, value]) => `
+  parsedProfile.innerHTML = sections
+    .map(
+      ([label, value]) => `
     <div class="parsedGroup">
       <p class="parsedLabel">${escapeHtml(label)}</p>
       <p class="parsedValue">${escapeHtml(value)}</p>
     </div>
-  `).join("");
+  `
+    )
+    .join("");
 
   if (parsedHint) parsedHint.style.display = "none";
   parsedProfile.style.display = "grid";
@@ -266,6 +270,7 @@ function setMode(mode) {
   setStatus("Draft · editing");
 }
 
+// ---------------- API helpers ----------------
 async function insertResponse(payload) {
   const { error } = await supabase.from("jobprompt").insert([payload]);
   if (error) throw error;
@@ -275,7 +280,6 @@ async function buildMultilingualQuery(roleText, aboutText) {
   const { data, error } = await supabase.functions.invoke("mistral-query-builder", {
     body: { role: roleText, about: aboutText }
   });
-
   if (error) throw error;
   return data;
 }
@@ -287,23 +291,18 @@ async function fetchTopJobs(queryText) {
   const { data, error } = await supabase.functions.invoke("jobindex-top3", {
     body: { q }
   });
-
   if (error) throw error;
   return data?.jobs || [];
 }
 
 async function uploadCvPdf(file) {
-  const ext = "pdf";
-  const path = `uploads/${crypto.randomUUID()}.${ext}`;
+  const path = `uploads/${crypto.randomUUID()}.pdf`;
 
-  const { error: uploadError } = await supabase
-    .storage
-    .from("cvs")
-    .upload(path, file, {
-      cacheControl: "3600",
-      upsert: false,
-      contentType: "application/pdf",
-    });
+  const { error: uploadError } = await supabase.storage.from("cvs").upload(path, file, {
+    cacheControl: "3600",
+    upsert: false,
+    contentType: "application/pdf"
+  });
 
   if (uploadError) throw uploadError;
 
@@ -315,11 +314,11 @@ async function parseCvPdf(pdfUrl) {
   const { data, error } = await supabase.functions.invoke("parse-cv-pdf", {
     body: { pdf_url: pdfUrl }
   });
-
   if (error) throw error;
   return data;
 }
 
+// ---------------- validation ----------------
 function getPromptSubmission() {
   const rawRole = clean(role?.value);
   const rawAbout = clean(experience?.value);
@@ -334,11 +333,7 @@ function getPromptSubmission() {
     throw new Error("Please write a bit more about your experience and interests.");
   }
 
-  return {
-    input_type: "prompt",
-    rawRole,
-    rawAbout
-  };
+  return { input_type: "prompt", rawRole, rawAbout };
 }
 
 function getCvSubmission() {
@@ -352,10 +347,7 @@ function getCvSubmission() {
     throw new Error("Only PDF CV files are supported right now.");
   }
 
-  return {
-    input_type: "cv_pdf",
-    file
-  };
+  return { input_type: "cv_pdf", file };
 }
 
 // ---------------- mode events ----------------
@@ -439,6 +431,7 @@ form?.addEventListener("submit", async (e) => {
   try {
     if (submitBtn) submitBtn.disabled = true;
 
+    // ---------- PROMPT MODE ----------
     if (currentMode === "prompt") {
       const submission = getPromptSubmission();
 
@@ -482,10 +475,7 @@ form?.addEventListener("submit", async (e) => {
       const jobs = await fetchTopJobs(finalQuery);
 
       if (!jobs.length) {
-        setJobsUI({
-          state: "empty",
-          message: "No results found. Try a different role description."
-        });
+        setJobsUI({ state: "empty", message: "No results found. Try a different role description." });
         setStatus("Saved · no results");
       } else {
         setJobsUI({ state: "ready", jobs });
@@ -498,6 +488,7 @@ form?.addEventListener("submit", async (e) => {
       return;
     }
 
+    // ---------- CV PDF MODE ----------
     const submission = getCvSubmission();
 
     setStatus("Uploading CV…");
