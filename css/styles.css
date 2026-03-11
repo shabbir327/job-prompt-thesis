@@ -161,18 +161,18 @@ header{
   font-weight:700;
   font-size:14px;
   cursor:pointer;
-  transition: .18s ease;
+  transition:.18s ease;
 }
 
 .modeBtn:hover{
-  border-color: var(--blue-2);
-  color: var(--blue);
-  transform: translateY(-1px);
+  border-color:var(--blue-2);
+  color:var(--blue);
+  transform:translateY(-1px);
 }
 
 .modeBtn.active{
   background: linear-gradient(180deg, var(--blue), var(--blue-2));
-  border-color: transparent;
+  border-color:transparent;
   color:#fff;
   box-shadow:0 10px 22px rgba(47,128,237,.22);
 }
@@ -192,13 +192,13 @@ form{
   border:1px solid var(--line);
   border-radius:var(--radius2);
   padding:14px 14px 12px;
-  transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+  transition:border-color .2s ease, box-shadow .2s ease, transform .2s ease;
 }
 
 .field:focus-within{
-  border-color: var(--blue-2);
-  box-shadow: 0 0 0 4px rgba(90,166,255,.12);
-  transform: translateY(-1px);
+  border-color:var(--blue-2);
+  box-shadow:0 0 0 4px rgba(90,166,255,.12);
+  transform:translateY(-1px);
 }
 
 label{
@@ -226,10 +226,6 @@ textarea{
   resize:vertical;
 }
 
-#cvPaste{
-  min-height:220px;
-}
-
 ::placeholder{
   color:#8aa0b8;
 }
@@ -255,7 +251,11 @@ input[type="file"]::file-selector-button{
   margin:10px 0 0;
   color:var(--text-faint);
   font-size:12px;
-  line-height:1.5;
+  line-height:1.55;
+}
+
+.uploadInfo{
+  background:linear-gradient(180deg, #fbfdff, #f4f9ff);
 }
 
 .actions{
@@ -503,13 +503,13 @@ input[type="file"]::file-selector-button{
     rgba(255,255,255,1),
     rgba(232,242,255,.7)
   );
-  background-size: 200% 100%;
-  animation: shimmer 1.2s ease-in-out infinite;
+  background-size:200% 100%;
+  animation:shimmer 1.2s ease-in-out infinite;
 }
 
 @keyframes shimmer{
-  0%{ background-position: 200% 0; }
-  100%{ background-position: -200% 0; }
+  0%{ background-position:200% 0; }
+  100%{ background-position:-200% 0; }
 }
 
 .subLink{
@@ -549,7 +549,7 @@ input[type="file"]::file-selector-button{
   padding:10px 12px;
   border-radius:14px;
   box-shadow:0 14px 32px rgba(39,88,145,.16);
-  transition: opacity .22s ease, transform .22s ease;
+  transition:opacity .22s ease, transform .22s ease;
   font-size:13px;
   max-width:min(520px, 92vw);
   display:flex;
