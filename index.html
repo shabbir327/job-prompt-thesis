@@ -3,8 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Job Prompt Studio - Thesis Prototype V1.0</title>
-  <meta name="description" content="A classy, minimal job prompt form." />
+  <title>Job Prompt Studio</title>
+  <meta
+    name="description"
+    content="Job Prompt Studio (JPS) is an academic research interface for job recommendation model training."
+  />
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
 
@@ -15,74 +18,121 @@
         <div class="logo" aria-hidden="true"></div>
         <h1>Job Prompt Studio</h1>
       </div>
-      <div class="pill" id="statusPill">Draft · not submitted</div>
+      <div class="pill" id="statusPill">Thesis Prototype v1</div>
     </header>
 
     <section class="hero">
-      <!-- Left: Form -->
+      <!-- LEFT PANEL -->
       <div class="panel">
-    <div class="top">
-      <p class="kicker">Academic research interface</p>
-    
-      <h2 class="title">Describe the job you want.</h2>
-    
-      <p class="subtitle subtitleWide">
-        <strong>Job Prompt Studio (JPS)</strong> is an interface built for academic research and 
-        job-CV recommendation model training. This research is conducted at the 
-        <strong>University of Southern Denmark (SDU)</strong>, and all collected data is used 
-        strictly for academic purposes.
-      </p>
-    
-      <p class="subtitle subtitleWide">
-        Your participation helps strengthen machine learning models and contributes valuable 
-        insights toward developing improved job recommendation systems in the future.
-      </p>
-    
-      <p class="subtitle subtitleWide">
-        Job Prompt Studio currently operates as a prototype and may return limited results. 
-        We invite you to enter a detailed job search prompt to help us better understand how 
-        users describe their career interests.
-      </p>
-    
-      <p class="subtitle subtitleWide">
-        Thank you for participating and supporting this research.
-      </p>
-    </div>
+        <div class="top">
+          <p class="kicker">Academic research interface</p>
+          <h2 class="title">Explore careers through prompt or CV.</h2>
 
-        <form id="jobForm" autocomplete="on">
-          <!-- 1. What job -->
-          <div class="field">
-            <label for="role">1) What job are you looking for?</label>
-            <input
-              id="role"
-              name="role"
-              type="text"
-              placeholder="e.g., Data Scientist, Software Engineer, HR, Creative Director"
-              maxlength="120"
-              required
-            />
+          <p class="subtitle subtitleWide">
+            <strong>Job Prompt Studio (JPS)</strong> is an interface built for academic
+            research and job-CV recommendation model training. This research is conducted
+            by the <strong>University of Southern Denmark (SDU)</strong>, and the data is
+            used strictly for academic purposes only.
+          </p>
+
+          <p class="subtitle subtitleWide">
+            Your participation helps strengthen our models and supports research toward
+            creating a stronger job recommendation system in the future.
+          </p>
+
+          <p class="subtitle subtitleWide">
+            Job Prompt Studio currently functions as a prototype with limited results.
+            You may either enter a detailed job-search prompt or upload your CV to receive
+            a recommendation for a fitting career path.
+          </p>
+
+          <p class="subtitle subtitleWide">
+            Thank you for participating and using JPS.
+          </p>
+        </div>
+
+        <div class="modeSwitch" role="tablist" aria-label="Input mode selector">
+          <button
+            class="modeBtn active"
+            id="promptModeBtn"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            aria-controls="promptModePanel"
+          >
+            Write a Job Prompt
+          </button>
+
+          <button
+            class="modeBtn"
+            id="cvModeBtn"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="cvModePanel"
+          >
+            Upload a CV
+          </button>
+        </div>
+
+        <!-- PROMPT MODE -->
+        <form id="jobForm" class="modePanel" autocomplete="on">
+          <div id="promptModePanel">
+            <div class="field">
+              <label for="role">1) What job are you looking for?</label>
+              <input
+                id="role"
+                name="role"
+                type="text"
+                placeholder="e.g., Data Scientist, Software Engineer, HR Specialist"
+                maxlength="120"
+              />
+            </div>
+
+            <div class="field">
+              <label for="experience">2) Past experience & interests</label>
+              <textarea
+                id="experience"
+                name="experience"
+                placeholder="Write a few lines about your experience, strengths, tools, industries, and what kind of work excites you."
+                maxlength="1200"
+              ></textarea>
+            </div>
           </div>
 
-          <!-- 2. Experience -->
-          <div class="field">
-            <label for="experience">2) Past experience & interests</label>
-            <textarea
-              id="experience"
-              name="experience"
-              placeholder="Write a few lines about your experience, strengths, tools, and what you’re excited about."
-              maxlength="1200"
-              required
-            ></textarea>
+          <!-- CV MODE -->
+          <div id="cvModePanel" class="hidden">
+            <div class="field">
+              <label for="cvFile">1) Upload your CV</label>
+              <input
+                id="cvFile"
+                name="cvFile"
+                type="file"
+                accept=".pdf,.docx,.txt"
+              />
+              <p class="fieldNote">
+                Accepted formats: PDF, DOCX, or TXT.
+              </p>
+            </div>
+
+            <div class="field">
+              <label for="cvPaste">2) Or paste CV text manually</label>
+              <textarea
+                id="cvPaste"
+                name="cvPaste"
+                placeholder="Paste CV content here if file parsing is unavailable or you want to test quickly."
+                maxlength="6000"
+              ></textarea>
+            </div>
           </div>
 
-          <!-- Consent -->
           <div class="field">
             <label class="consent">
-              <input id="consent" type="checkbox" required checked/>
+              <input id="consent" type="checkbox" required checked />
               <span>
-                I consent to storing this information for educational purposes.
+                I consent to storing this information for educational and academic research purposes.
                 <span class="consent-sub">
-                  You can withdraw by contacting the site owner.
+                  You may withdraw by contacting the research owner.
                 </span>
               </span>
             </label>
@@ -90,11 +140,12 @@
 
           <div class="actions">
             <div class="hint">
-              Tip: be specific (industry, seniority, tools, outcomes). Keep it human.
+              Tip: the more detail you provide, the better the recommendations and parsing quality.
             </div>
+
             <div class="btnRow">
               <button class="btn" type="button" id="resetBtn">Reset</button>
-              <button class="btn primary" type="submit" id="generateBtn">Find jobs</button>
+              <button class="btn primary" type="submit" id="submitBtn">Get recommendation</button>
             </div>
           </div>
 
@@ -102,55 +153,74 @@
         </form>
       </div>
 
-      <!-- Right: Live Summary -->
-      <aside class="panel summary" aria-label="Live prompt preview">
+      <!-- RIGHT PANEL -->
+      <aside class="panel summary" aria-label="Live preview and recommendation results">
         <div class="top">
           <p class="kicker">Preview</p>
-          <h2 class="title titleSmall">Suggestions, curated.</h2>
+          <h2 class="title titleSmall">Parsed profile and suggestions.</h2>
           <p class="subtitle subtitleWide">
-            This updates as you type. Click <b>Find jobs</b> to save your response and fetch the top matches.
+            This preview updates as you type or upload content. Click
+            <b>Get recommendation</b> to save your response, parse the input,
+            and fetch relevant job suggestions.
           </p>
         </div>
 
         <div class="mini">
           <div class="card">
-            <h3>Role</h3>
+            <h3>Input mode</h3>
+            <p id="previewMode">Job Prompt</p>
+          </div>
+
+          <div class="card">
+            <h3>Role / target</h3>
             <p id="previewRole">—</p>
           </div>
 
           <div class="card">
-            <h3>Experience & interests</h3>
+            <h3>Experience / CV content</h3>
             <p id="previewExperience">—</p>
           </div>
 
           <div class="card">
-            <h3>Suggested Jobs</h3>
+            <h3>Parsed profile</h3>
+            <p id="parsedHint" class="lockedHint">
+              Submit your input to generate parsed skills, roles, and recommendation signals.
+            </p>
+            <div id="parsedProfile" style="display:none;"></div>
+          </div>
+
+          <div class="card">
+            <h3>Suggested jobs</h3>
 
             <p id="jobsHint" class="lockedHint">
-              Click <b>Find jobs</b> to save your response and find the best matches.
+              Click <b>Get recommendation</b> to save your response and fetch matching jobs.
             </p>
 
             <p id="jobsStatus" class="lockedHint" style="display:none;"></p>
 
-            <!-- Loading skeletons -->
             <div id="jobsSkeleton" class="jobsList" style="display:none;">
               <div class="skeletonCard"></div>
               <div class="skeletonCard"></div>
               <div class="skeletonCard"></div>
             </div>
 
-            <!-- Results -->
             <div id="jobsList" class="jobsList" style="display:none;"></div>
 
             <p class="lockedHint" style="margin-top:10px;">
-              <a id="jobindexAllLink" href="#" target="_blank" rel="noopener noreferrer" class="subLink">
+              <a
+                id="jobindexAllLink"
+                href="#"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="subLink"
+              >
                 View all results on Jobindex →
               </a>
             </p>
           </div>
 
           <div class="btnRow">
-            <button class="btn" type="button" id="copyBtn">Copy role + interests</button>
+            <button class="btn" type="button" id="copyBtn">Copy current input</button>
           </div>
         </div>
 
@@ -162,27 +232,19 @@
     </section>
   </div>
 
+  <footer class="footer">
+    <p>
+      Job Prompt Studio (JPS) is an academic research prototype developed at the
+      <strong>University of Southern Denmark (SDU)</strong>.
+      Data collected through this interface is used strictly for academic purposes.
+    </p>
+  </footer>
+
   <div class="toast" id="toast" role="status" aria-live="polite">
     <span class="dot" aria-hidden="true"></span>
     <span id="toastText">Copied</span>
   </div>
 
-<footer class="footer">
-  <p>
-    Job Prompt Studio (JPS) – Academic research prototype developed at the
-    <strong>University of Southern Denmark (SDU)</strong>.
-    Data collected through this interface is used strictly for academic research.
-  </p>
-
-  <p>
-    For questions regarding this research please contact:
-    <a href="mailto:your-aksha24@student.sdu.dk">your-email@edu.sdu.dk</a>
-  </p>
-</footer>
-
-<script type="module" src="./js/app.js"></script>
+  <script type="module" src="./js/app.js"></script>
 </body>
 </html>
-
-
-
