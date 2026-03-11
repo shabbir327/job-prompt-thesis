@@ -3,6 +3,7 @@ import { anonymizeText, randomId, getOrCreateParticipantId } from "./anonymize.j
 
 const $ = (sel) => document.querySelector(sel);
 
+
 // ---------------- core UI ----------------
 const form = $("#jobForm");
 const statusPill = $("#statusPill");
@@ -582,3 +583,4 @@ clearParsedProfile();
 setJobsUI({ state: "idle" });
 setStatus("Thesis Prototype v1");
 setMode("prompt");
+
