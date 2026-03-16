@@ -30,6 +30,7 @@ const education = $("#education");
 const yearsExperience = $("#yearsExperience");
 const skills = $("#skills");
 const languages = $("#languages");
+const location = $("#location");
 
 // ---------------- CV inputs ----------------
 const cvFile = $("#cvFile");
@@ -146,6 +147,7 @@ function getStructuredPromptFields() {
     yearsExperience: clean(yearsExperience?.value),
     skills: parseCommaList(skills?.value),
     languages: parseCommaList(languages?.value),
+    location: parseCommaList(location?.value),
   };
 }
 
@@ -161,6 +163,7 @@ function buildStructuredPreviewText() {
     fields.yearsExperience ? `Years of experience: ${fields.yearsExperience}` : "",
     fields.skills.length ? `Skills: ${fields.skills.join(", ")}` : "",
     fields.languages.length ? `Languages: ${fields.languages.join(", ")}` : "",
+    fields.location.length ? `location: ${fields.location.join(", ")}` : "",
   ].filter(Boolean);
 
   return lines.length ? lines.join("\n") : "—";
@@ -174,6 +177,7 @@ function buildAugmentedAbout(rawAbout, structured) {
   if (clean(structured.yearsExperience)) parts.push(`Years of experience:\n${structured.yearsExperience}`);
   if (structured.skills?.length) parts.push(`Skills:\n${structured.skills.join(", ")}`);
   if (structured.languages?.length) parts.push(`Languages:\n${structured.languages.join(", ")}`);
+  if (structured.location?.length) parts.push(`location:\n${structured.location.join(", ")}`);
 
   return parts.join("\n\n").trim();
 }
@@ -316,6 +320,7 @@ function renderParsedProfile(data) {
     ["Industries", data?.industries],
     ["Education", data?.education],
     ["Languages", data?.languages],
+    ["Location", data?.location],
     ["Years of relevant experience", data?.years_experience],
     ["Seniority", data?.seniority],
     ["Summary", data?.summary],
@@ -462,6 +467,7 @@ function getPromptSubmission() {
     clean(structured.yearsExperience) ||
     structured.skills.length ||
     structured.languages.length;
+    structured.location.length;
 
   if (!clean(rawAbout) && !hasStructuredInfo) {
     experience?.focus();
@@ -510,7 +516,7 @@ function onEdit() {
   setStatus("Draft · editing");
 }
 
-[role, experience, education, yearsExperience, skills, languages, consentEl].forEach((el) => {
+[role, experience, education, yearsExperience, skills, languages, location, consentEl].forEach((el) => {
   if (!el) return;
   el.addEventListener("input", onEdit);
   el.addEventListener("change", onEdit);
@@ -620,6 +626,7 @@ form?.addEventListener("submit", async (e) => {
         industries: asArray(llm?.industries),
         education: asArray(llm?.education),
         languages: asArray(llm?.languages),
+        location: asArray(llm?.location),
         years_experience: asNullableNumber(llm?.years_experience),
         seniority: clean(llm?.seniority) || null,
         summary: clean(llm?.summary) || null,
@@ -628,6 +635,7 @@ form?.addEventListener("submit", async (e) => {
         user_education: anonymizeText(submission.structured.education || ""),
         user_skills: submission.structured.skills.map(anonymizeText),
         user_languages: submission.structured.languages.map(anonymizeText),
+        user_location: submission.structured.location.map(anonymizeText),
         user_years_experience: asNullableNumber(submission.structured.yearsExperience),
 
         consent: true,
@@ -701,6 +709,7 @@ form?.addEventListener("submit", async (e) => {
         industries: asArray(parsedCv?.industries),
         education: asArray(parsedCv?.education),
         languages: asArray(parsedCv?.languages),
+        location: asArray(parsedCv?.location),
         years_experience: asNullableNumber(parsedCv?.years_experience),
         seniority: clean(parsedCv?.seniority) || null,
         summary: clean(parsedCv?.summary) || null,
@@ -709,6 +718,7 @@ form?.addEventListener("submit", async (e) => {
         user_education: null,
         user_skills: [],
         user_languages: [],
+        user_location: [],
         user_years_experience: null,
 
         consent: true,
