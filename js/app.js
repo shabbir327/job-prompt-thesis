@@ -198,6 +198,27 @@ function currentInputSummary() {
   };
 }
 
+function formatRoleExperience(roleExperience) {
+  if (!Array.isArray(roleExperience) || !roleExperience.length) return "";
+
+  return roleExperience
+    .map((item) => {
+      const role = clean(item?.role);
+      const years = item?.years;
+      const evidence = clean(item?.evidence);
+
+      const yearsText =
+        years === null || years === undefined || years === ""
+          ? ""
+          : `${years} year${Number(years) === 1 ? "" : "s"}`;
+
+      const left = [role, yearsText].filter(Boolean).join(" — ");
+      return evidence ? `${left}\nEvidence: ${evidence}` : left;
+    })
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 function setJobsUI({ state = "idle", message = "", jobs = [] } = {}) {
   if (jobsHint) jobsHint.style.display = state === "idle" ? "block" : "none";
 
@@ -287,6 +308,7 @@ function renderParsedProfile(data) {
     ["Detected language", data?.language],
     ["Normalized role", data?.normalized_role],
     ["Normalized roles", data?.normalized_roles],
+    ["Role-specific experience", formatRoleExperience(data?.role_experience)],
     ["Danish keywords", data?.danish_keywords],
     ["English keywords", data?.english_keywords],
     ["Adjacent roles", data?.adjacent_roles],
@@ -294,7 +316,7 @@ function renderParsedProfile(data) {
     ["Industries", data?.industries],
     ["Education", data?.education],
     ["Languages", data?.languages],
-    ["Years of experience", data?.years_experience],
+    ["Years of relevant experience", data?.years_experience],
     ["Seniority", data?.seniority],
     ["Summary", data?.summary],
     ["Jobindex query", data?.jobindex_query],
@@ -589,15 +611,16 @@ form?.addEventListener("submit", async (e) => {
         language: clean(llm?.language) || null,
         normalized_role: clean(llm?.normalized_role) || null,
         normalized_roles: asArray(llm?.normalized_roles),
+        role_experience: null,
         danish_keywords: asArray(llm?.danish_keywords),
         english_keywords: asArray(llm?.english_keywords),
         adjacent_roles: asArray(llm?.adjacent_roles),
 
         skills: asArray(llm?.skills),
         industries: asArray(llm?.industries),
-        education: [],
-        languages: [],
-        years_experience: null,
+        education: asArray(llm?.education),
+        languages: asArray(llm?.languages),
+        years_experience: asNullableNumber(llm?.years_experience),
         seniority: clean(llm?.seniority) || null,
         summary: clean(llm?.summary) || null,
         jobindex_query: finalQuery,
@@ -669,6 +692,7 @@ form?.addEventListener("submit", async (e) => {
         language: clean(parsedCv?.language) || null,
         normalized_role: clean(parsedCv?.normalized_role) || null,
         normalized_roles: asArray(parsedCv?.normalized_roles),
+        role_experience: Array.isArray(parsedCv?.role_experience) ? parsedCv.role_experience : null,
         danish_keywords: asArray(parsedCv?.danish_keywords),
         english_keywords: asArray(parsedCv?.english_keywords),
         adjacent_roles: asArray(parsedCv?.adjacent_roles),
