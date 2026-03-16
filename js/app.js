@@ -163,7 +163,7 @@ function buildStructuredPreviewText() {
     fields.yearsExperience ? `Years of experience: ${fields.yearsExperience}` : "",
     fields.skills.length ? `Skills: ${fields.skills.join(", ")}` : "",
     fields.languages.length ? `Languages: ${fields.languages.join(", ")}` : "",
-    fields.location.length ? `location: ${fields.location.join(", ")}` : "",
+    fields.location.length ? `Location: ${fields.location.join(", ")}` : "",
   ].filter(Boolean);
 
   return lines.length ? lines.join("\n") : "—";
@@ -177,7 +177,7 @@ function buildAugmentedAbout(rawAbout, structured) {
   if (clean(structured.yearsExperience)) parts.push(`Years of experience:\n${structured.yearsExperience}`);
   if (structured.skills?.length) parts.push(`Skills:\n${structured.skills.join(", ")}`);
   if (structured.languages?.length) parts.push(`Languages:\n${structured.languages.join(", ")}`);
-  if (structured.location?.length) parts.push(`location:\n${structured.location.join(", ")}`);
+  if (structured.location?.length) parts.push(`Location:\n${structured.location.join(", ")}`);
 
   return parts.join("\n\n").trim();
 }
@@ -466,7 +466,7 @@ function getPromptSubmission() {
     clean(structured.education) ||
     clean(structured.yearsExperience) ||
     structured.skills.length ||
-    structured.languages.length;
+    structured.languages.length ||
     structured.location.length;
 
   if (!clean(rawAbout) && !hasStructuredInfo) {
@@ -635,7 +635,6 @@ form?.addEventListener("submit", async (e) => {
         user_education: anonymizeText(submission.structured.education || ""),
         user_skills: submission.structured.skills.map(anonymizeText),
         user_languages: submission.structured.languages.map(anonymizeText),
-        user_location: submission.structured.location.map(anonymizeText),
         user_years_experience: asNullableNumber(submission.structured.yearsExperience),
 
         consent: true,
@@ -718,7 +717,6 @@ form?.addEventListener("submit", async (e) => {
         user_education: null,
         user_skills: [],
         user_languages: [],
-        user_location: [],
         user_years_experience: null,
 
         consent: true,
