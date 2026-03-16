@@ -686,8 +686,8 @@ form?.addEventListener("submit", async (e) => {
         participant_id: participantId,
         submission_id: randomId("s"),
         source_type: submission.source_type,
-        raw_role: anonymizeText(`CV upload: ${submission.file.name}`),
-        raw_about: anonymizeText(`Uploaded PDF CV: ${submission.file.name}`),
+        raw_role: null,
+        raw_about: null,
 
         language: clean(parsedCv?.language) || null,
         normalized_role: clean(parsedCv?.normalized_role) || null,
