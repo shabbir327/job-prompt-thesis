@@ -289,10 +289,16 @@ async function fetchTopJobs(queryText) {
 
   const { data, error } = await supabase.functions.invoke("jobindex-top3", {
     body: { q }
-  });
 
   if (error) throw error;
   return data?.jobs || [];
+}
+
+async function deleteCvPdf(path) {
+  const { error } = await supabase.storage.from("cvs").remove([path]);
+  if (error) {
+    console.error("Failed to delete uploaded CV:", error);
+  }
 }
 
 async function uploadCvPdf(file) {
@@ -509,29 +515,62 @@ form?.addEventListener("submit", async (e) => {
     setStatus("Uploading CV…");
     setAria("Uploading your CV.");
 
-    const upload = await uploadCvPdf(submission.file);
+const upload = await uploadCvPdf(submission.file);
 
-    setStatus("Saving metadata…");
-    setAria("Saving your submission.");
+try {
+  setStatus("Saving metadata…");
+  setAria("Saving your submission.");
 
-    const payload = {
-      participant_id: participantId,
-      submission_id: randomId("s"),
-      input_type: "cv_pdf",
-      role: anonymizeText(`CV upload: ${submission.file.name}`),
-      about: anonymizeText(`Uploaded PDF CV: ${submission.file.name}`),
-      consent: true
-    };
+  const payload = {
+    participant_id: participantId,
+    submission_id: randomId("s"),
+    input_type: "cv_pdf",
+    role: anonymizeText(`CV upload: ${submission.file.name}`),
+    about: anonymizeText(`Uploaded PDF CV: ${submission.file.name}`),
+    consent: true
+  };
 
-    await insertResponse(payload);
+  await insertResponse(payload);
 
-    setStatus("Parsing CV with AI…");
-    setAria("Parsing your CV with AI.");
-    clearParsedProfile();
-    setJobsUI({ state: "loading", message: "Reading your PDF CV and finding matching jobs…" });
+  setStatus("Parsing CV with AI…");
+  setAria("Parsing your CV with AI.");
+  clearParsedProfile();
+  setJobsUI({ state: "loading", message: "Reading your PDF CV and finding matching jobs…" });
 
-    const parsedCv = await parseCvPdf(upload.publicUrl);
-    renderParsedProfile(parsedCv);
+  const parsedCv = await parseCvPdf(upload.publicUrl);
+  renderParsedProfile(parsedCv);
+
+  const finalQuery =
+    clean(parsedCv?.jobindex_query) ||
+    clean(parsedCv?.normalized_role) ||
+    "job";
+
+  if (jobindexAllLink) {
+    jobindexAllLink.href = jobIndexUrlForQuery(finalQuery);
+  }
+
+  setStatus("Finding jobs…");
+  setAria("Finding relevant jobs.");
+
+  const jobs = await fetchTopJobs(finalQuery);
+
+  if (!jobs.length) {
+    setJobsUI({
+      state: "empty",
+      message: "No results found. Try another CV or refine the parsing pipeline."
+    });
+    setStatus("Saved · no results");
+  } else {
+    setJobsUI({ state: "ready", jobs });
+    setStatus("Saved · recommendation ready");
+  }
+
+  setAria("Recommendation complete.");
+  if (lastSaved) lastSaved.textContent = `Saved ${nowStamp()}`;
+  showToast("CV recommendation ready.");
+} finally {
+  await deleteCvPdf(upload.path);
+}
 
     const finalQuery =
       clean(parsedCv?.jobindex_query) ||
