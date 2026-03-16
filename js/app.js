@@ -611,7 +611,7 @@ form?.addEventListener("submit", async (e) => {
         language: clean(llm?.language) || null,
         normalized_role: clean(llm?.normalized_role) || null,
         normalized_roles: asArray(llm?.normalized_roles),
-        role_experience: null,
+        role_experience: Array.isArray(llm?.role_experience) ? llm.role_experience : null,
         danish_keywords: asArray(llm?.danish_keywords),
         english_keywords: asArray(llm?.english_keywords),
         adjacent_roles: asArray(llm?.adjacent_roles),
