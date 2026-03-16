@@ -87,6 +87,60 @@
                 maxlength="1200"
               ></textarea>
             </div>
+
+            <div class="grid2">
+              <div class="field">
+                <label for="education">3) Education</label>
+                <input
+                  id="education"
+                  name="education"
+                  type="text"
+                  placeholder="e.g., MSc Data Science, BSc Computer Science"
+                  maxlength="200"
+                />
+              </div>
+
+              <div class="field">
+                <label for="yearsExperience">4) Years of experience</label>
+                <input
+                  id="yearsExperience"
+                  name="yearsExperience"
+                  type="number"
+                  min="0"
+                  max="60"
+                  step="0.5"
+                  placeholder="e.g., 3"
+                />
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="skills">5) Skills</label>
+              <input
+                id="skills"
+                name="skills"
+                type="text"
+                placeholder="e.g., Python, SQL, Power BI, Project Management"
+                maxlength="400"
+              />
+              <p class="fieldNote">
+                Separate skills with commas.
+              </p>
+            </div>
+
+            <div class="field">
+              <label for="languages">6) Languages</label>
+              <input
+                id="languages"
+                name="languages"
+                type="text"
+                placeholder="e.g., English, Danish, German"
+                maxlength="200"
+              />
+              <p class="fieldNote">
+                Separate languages with commas.
+              </p>
+            </div>
           </div>
 
           <!-- CV MODE -->
@@ -167,6 +221,11 @@
           <div class="card">
             <h3>Experience / CV content</h3>
             <p id="previewExperience">—</p>
+          </div>
+
+          <div class="card">
+            <h3>Structured input</h3>
+            <p id="previewStructured">—</p>
           </div>
 
           <div class="card">
