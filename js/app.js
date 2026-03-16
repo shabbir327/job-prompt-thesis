@@ -26,6 +26,10 @@ const cvModePanel = $("#cvModePanel");
 // ---------------- prompt inputs ----------------
 const role = $("#role");
 const experience = $("#experience");
+const education = $("#education");
+const yearsExperience = $("#yearsExperience");
+const skills = $("#skills");
+const languages = $("#languages");
 
 // ---------------- CV inputs ----------------
 const cvFile = $("#cvFile");
@@ -37,6 +41,7 @@ const consentEl = $("#consent");
 const previewMode = $("#previewMode");
 const previewRole = $("#previewRole");
 const previewExperience = $("#previewExperience");
+const previewStructured = $("#previewStructured");
 
 // ---------------- parsed profile ----------------
 const parsedHint = $("#parsedHint");
@@ -56,6 +61,13 @@ let currentMode = "prompt";
 // ---------------- helpers ----------------
 function clean(v) {
   return String(v ?? "").trim();
+}
+
+function parseCommaList(text) {
+  return clean(text)
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 function nowStamp() {
@@ -116,20 +128,77 @@ function summarizeFilename(file) {
   return `${file.name} (${Math.round(file.size / 1024)} KB)`;
 }
 
+function getStructuredPromptFields() {
+  return {
+    education: clean(education?.value),
+    yearsExperience: clean(yearsExperience?.value),
+    skills: parseCommaList(skills?.value),
+    languages: parseCommaList(languages?.value),
+  };
+}
+
+function buildStructuredPreviewText() {
+  if (currentMode !== "prompt") {
+    return "PDF CV will be privacy-redacted and parsed automatically.";
+  }
+
+  const fields = getStructuredPromptFields();
+
+  const lines = [
+    fields.education ? `Education: ${fields.education}` : "",
+    fields.yearsExperience ? `Years of experience: ${fields.yearsExperience}` : "",
+    fields.skills.length ? `Skills: ${fields.skills.join(", ")}` : "",
+    fields.languages.length ? `Languages: ${fields.languages.join(", ")}` : "",
+  ].filter(Boolean);
+
+  return lines.length ? lines.join("\n") : "—";
+}
+
+function buildAugmentedAbout(rawAbout, structured) {
+  const parts = [];
+
+  if (clean(rawAbout)) {
+    parts.push(`Experience and interests:\n${clean(rawAbout)}`);
+  }
+
+  if (clean(structured.education)) {
+    parts.push(`Education:\n${structured.education}`);
+  }
+
+  if (clean(structured.yearsExperience)) {
+    parts.push(`Years of experience:\n${structured.yearsExperience}`);
+  }
+
+  if (structured.skills?.length) {
+    parts.push(`Skills:\n${structured.skills.join(", ")}`);
+  }
+
+  if (structured.languages?.length) {
+    parts.push(`Languages:\n${structured.languages.join(", ")}`);
+  }
+
+  return parts.join("\n\n").trim();
+}
+
 function currentInputSummary() {
   if (currentMode === "prompt") {
+    const structuredText = buildStructuredPreviewText();
+
     return {
       modeLabel: "Job Prompt",
       roleText: clean(role?.value) || "—",
       contentText: clean(experience?.value) || "—",
+      structuredText,
     };
   }
 
   const file = cvFile?.files?.[0] || null;
+
   return {
     modeLabel: "PDF CV Upload",
     roleText: file ? summarizeFilename(file) : "CV-based recommendation",
     contentText: file ? `Uploaded PDF CV: ${summarizeFilename(file)}` : "—",
+    structuredText: "PDF CV will be privacy-redacted and parsed automatically.",
   };
 }
 
@@ -196,25 +265,46 @@ function clearParsedProfile() {
   }
 }
 
+function normalizeDisplayValue(value) {
+  if (Array.isArray(value)) {
+    return value.map((v) => normalizeDisplayValue(v)).filter(Boolean).join(", ");
+  }
+
+  if (value && typeof value === "object") {
+    try {
+      if ("degree" in value || "title" in value || "name" in value) {
+        return [value.degree, value.title, value.name].filter(Boolean).join(" - ");
+      }
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+
+  return clean(value);
+}
+
 function renderParsedProfile(data) {
   if (!parsedProfile) return;
 
   const sections = [
     ["Detected language", data?.language],
     ["Normalized role", data?.normalized_role],
-    ["Normalized roles", Array.isArray(data?.normalized_roles) ? data.normalized_roles.join(", ") : ""],
-    ["Danish keywords", Array.isArray(data?.danish_keywords) ? data.danish_keywords.join(", ") : ""],
-    ["English keywords", Array.isArray(data?.english_keywords) ? data.english_keywords.join(", ") : ""],
-    ["Adjacent roles", Array.isArray(data?.adjacent_roles) ? data.adjacent_roles.join(", ") : ""],
-    ["Skills", Array.isArray(data?.skills) ? data.skills.join(", ") : ""],
-    ["Industries", Array.isArray(data?.industries) ? data.industries.join(", ") : ""],
-    ["Education", Array.isArray(data?.education) ? data.education.join(", ") : ""],
-    ["Languages", Array.isArray(data?.languages) ? data.languages.join(", ") : ""],
+    ["Normalized roles", data?.normalized_roles],
+    ["Danish keywords", data?.danish_keywords],
+    ["English keywords", data?.english_keywords],
+    ["Adjacent roles", data?.adjacent_roles],
+    ["Skills", data?.skills],
+    ["Industries", data?.industries],
+    ["Education", data?.education],
+    ["Languages", data?.languages],
     ["Years of experience", data?.years_experience],
     ["Seniority", data?.seniority],
     ["Summary", data?.summary],
     ["Jobindex query", data?.jobindex_query],
-  ].filter(([, value]) => clean(value));
+  ]
+    .map(([label, value]) => [label, normalizeDisplayValue(value)])
+    .filter(([, value]) => clean(value));
 
   if (!sections.length) {
     clearParsedProfile();
@@ -242,6 +332,7 @@ function updatePreview() {
   if (previewMode) previewMode.textContent = summary.modeLabel;
   if (previewRole) previewRole.textContent = summary.roleText;
   if (previewExperience) previewExperience.textContent = summary.contentText;
+  if (previewStructured) previewStructured.textContent = summary.structuredText;
 
   updateCounter();
   if (lastSaved) lastSaved.textContent = `Updated ${nowStamp()}`;
@@ -366,13 +457,26 @@ async function parseCvPdf(pdfUrl) {
 function getPromptSubmission() {
   const rawRole = clean(role?.value);
   const rawAbout = clean(experience?.value);
+  const structured = getStructuredPromptFields();
+  const augmentedAbout = buildAugmentedAbout(rawAbout, structured);
 
   if (!rawRole) {
     role?.focus();
     throw new Error("Please enter the role you are looking for.");
   }
 
-  if (rawAbout.length < 30) {
+  const hasStructuredInfo =
+    clean(structured.education) ||
+    clean(structured.yearsExperience) ||
+    structured.skills.length ||
+    structured.languages.length;
+
+  if (!clean(rawAbout) && !hasStructuredInfo) {
+    experience?.focus();
+    throw new Error("Please add some experience details or structured profile information.");
+  }
+
+  if (clean(rawAbout) && rawAbout.length < 20 && !hasStructuredInfo) {
     experience?.focus();
     throw new Error("Please write a bit more about your experience and interests.");
   }
@@ -381,6 +485,8 @@ function getPromptSubmission() {
     input_type: "prompt",
     rawRole,
     rawAbout,
+    structured,
+    augmentedAbout,
   };
 }
 
@@ -415,7 +521,7 @@ function onEdit() {
   setStatus("Draft · editing");
 }
 
-[role, experience, consentEl].forEach((el) => {
+[role, experience, education, yearsExperience, skills, languages, consentEl].forEach((el) => {
   if (!el) return;
   el.addEventListener("input", onEdit);
   el.addEventListener("change", onEdit);
@@ -462,6 +568,9 @@ copyBtn?.addEventListener("click", async () => {
     "",
     "Experience / CV content:",
     summary.contentText,
+    "",
+    "Structured input:",
+    summary.structuredText,
   ].join("\n");
 
   try {
@@ -496,7 +605,7 @@ form?.addEventListener("submit", async (e) => {
         submission_id: randomId("s"),
         input_type: submission.input_type,
         role: anonymizeText(submission.rawRole),
-        about: anonymizeText(submission.rawAbout),
+        about: anonymizeText(submission.augmentedAbout),
         consent: true,
       };
 
@@ -512,7 +621,7 @@ form?.addEventListener("submit", async (e) => {
 
       let llm;
       try {
-        llm = await buildMultilingualQuery(submission.rawRole, submission.rawAbout);
+        llm = await buildMultilingualQuery(submission.rawRole, submission.augmentedAbout);
         renderParsedProfile(llm);
       } catch (llmErr) {
         console.error("Mistral parsing failed:", llmErr);
