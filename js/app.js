@@ -70,6 +70,18 @@ function parseCommaList(text) {
     .filter(Boolean);
 }
 
+function asArray(value) {
+  if (Array.isArray(value)) return value.map((v) => clean(v)).filter(Boolean);
+  return [];
+}
+
+function asNullableNumber(value) {
+  const v = clean(value);
+  if (!v) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 function nowStamp() {
   const d = new Date();
   return d.toLocaleString(undefined, {
@@ -157,38 +169,22 @@ function buildStructuredPreviewText() {
 function buildAugmentedAbout(rawAbout, structured) {
   const parts = [];
 
-  if (clean(rawAbout)) {
-    parts.push(`Experience and interests:\n${clean(rawAbout)}`);
-  }
-
-  if (clean(structured.education)) {
-    parts.push(`Education:\n${structured.education}`);
-  }
-
-  if (clean(structured.yearsExperience)) {
-    parts.push(`Years of experience:\n${structured.yearsExperience}`);
-  }
-
-  if (structured.skills?.length) {
-    parts.push(`Skills:\n${structured.skills.join(", ")}`);
-  }
-
-  if (structured.languages?.length) {
-    parts.push(`Languages:\n${structured.languages.join(", ")}`);
-  }
+  if (clean(rawAbout)) parts.push(`Experience and interests:\n${clean(rawAbout)}`);
+  if (clean(structured.education)) parts.push(`Education:\n${structured.education}`);
+  if (clean(structured.yearsExperience)) parts.push(`Years of experience:\n${structured.yearsExperience}`);
+  if (structured.skills?.length) parts.push(`Skills:\n${structured.skills.join(", ")}`);
+  if (structured.languages?.length) parts.push(`Languages:\n${structured.languages.join(", ")}`);
 
   return parts.join("\n\n").trim();
 }
 
 function currentInputSummary() {
   if (currentMode === "prompt") {
-    const structuredText = buildStructuredPreviewText();
-
     return {
       modeLabel: "Job Prompt",
       roleText: clean(role?.value) || "—",
       contentText: clean(experience?.value) || "—",
-      structuredText,
+      structuredText: buildStructuredPreviewText(),
     };
   }
 
@@ -362,8 +358,8 @@ function setMode(mode) {
 }
 
 // ---------------- supabase helpers ----------------
-async function insertResponse(payload) {
-  const { error } = await supabase.from("jobprompt").insert([payload]);
+async function insertCandidateProfile(payload) {
+  const { error } = await supabase.from("candidate_profiles").insert([payload]);
   if (error) throw error;
 }
 
@@ -372,16 +368,8 @@ async function buildMultilingualQuery(roleText, aboutText) {
     body: { role: roleText, about: aboutText },
   });
 
-  console.log("mistral-query-builder data:", data);
-  console.log("mistral-query-builder error:", error);
-
-  if (error) {
-    throw new Error(error.message || "mistral-query-builder failed");
-  }
-
-  if (data?.error) {
-    throw new Error(data.error);
-  }
+  if (error) throw new Error(error.message || "mistral-query-builder failed");
+  if (data?.error) throw new Error(data.error);
 
   return data;
 }
@@ -394,16 +382,8 @@ async function fetchTopJobs(queryText) {
     body: { q },
   });
 
-  console.log("jobindex-top3 data:", data);
-  console.log("jobindex-top3 error:", error);
-
-  if (error) {
-    throw new Error(error.message || "jobindex-top3 failed");
-  }
-
-  if (data?.error) {
-    throw new Error(data.error);
-  }
+  if (error) throw new Error(error.message || "jobindex-top3 failed");
+  if (data?.error) throw new Error(data.error);
 
   return data?.jobs || [];
 }
@@ -429,9 +409,7 @@ async function uploadCvPdf(file) {
 
 async function deleteCvPdf(path) {
   const { error } = await supabase.storage.from("cvs").remove([path]);
-  if (error) {
-    console.error("Failed to delete uploaded CV:", error);
-  }
+  if (error) console.error("Failed to delete uploaded CV:", error);
 }
 
 async function parseCvPdf(pdfUrl) {
@@ -439,16 +417,8 @@ async function parseCvPdf(pdfUrl) {
     body: { pdf_url: pdfUrl },
   });
 
-  console.log("parse-cv-pdf data:", data);
-  console.log("parse-cv-pdf error:", error);
-
-  if (error) {
-    throw new Error(error.message || "parse-cv-pdf failed");
-  }
-
-  if (data?.error) {
-    throw new Error(data.error);
-  }
+  if (error) throw new Error(error.message || "parse-cv-pdf failed");
+  if (data?.error) throw new Error(data.error);
 
   return data;
 }
@@ -482,7 +452,7 @@ function getPromptSubmission() {
   }
 
   return {
-    input_type: "prompt",
+    source_type: "job_prompt",
     rawRole,
     rawAbout,
     structured,
@@ -493,16 +463,13 @@ function getPromptSubmission() {
 function getCvSubmission() {
   const file = cvFile?.files?.[0] || null;
 
-  if (!file) {
-    throw new Error("Please upload a PDF CV.");
-  }
-
+  if (!file) throw new Error("Please upload a PDF CV.");
   if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
     throw new Error("Only PDF CV files are supported right now.");
   }
 
   return {
-    input_type: "cv_pdf",
+    source_type: "cv_pdf",
     file,
   };
 }
@@ -539,7 +506,6 @@ cvFile?.addEventListener("change", () => {
 // ---------------- buttons ----------------
 resetBtn?.addEventListener("click", () => {
   form?.reset();
-
   if (cvFile) cvFile.value = "";
 
   clearParsedProfile();
@@ -551,11 +517,8 @@ resetBtn?.addEventListener("click", () => {
   setStatus("Thesis Prototype v1");
   updatePreview();
 
-  if (currentMode === "prompt") {
-    role?.focus();
-  } else {
-    cvFile?.focus();
-  }
+  if (currentMode === "prompt") role?.focus();
+  else cvFile?.focus();
 });
 
 copyBtn?.addEventListener("click", async () => {
@@ -597,20 +560,6 @@ form?.addEventListener("submit", async (e) => {
     if (currentMode === "prompt") {
       const submission = getPromptSubmission();
 
-      setStatus("Saving · please wait");
-      setAria("Saving your submission.");
-
-      const payload = {
-        participant_id: participantId,
-        submission_id: randomId("s"),
-        input_type: submission.input_type,
-        role: anonymizeText(submission.rawRole),
-        about: anonymizeText(submission.augmentedAbout),
-        consent: true,
-      };
-
-      await insertResponse(payload);
-
       setStatus("Parsing with AI…");
       setAria("Parsing your input with AI.");
       clearParsedProfile();
@@ -619,7 +568,7 @@ form?.addEventListener("submit", async (e) => {
         message: "Parsing your input and finding matching jobs…",
       });
 
-      let llm;
+      let llm = null;
       try {
         llm = await buildMultilingualQuery(submission.rawRole, submission.augmentedAbout);
         renderParsedProfile(llm);
@@ -630,9 +579,38 @@ form?.addEventListener("submit", async (e) => {
 
       const finalQuery = clean(llm?.jobindex_query) || submission.rawRole;
 
-      if (jobindexAllLink) {
-        jobindexAllLink.href = jobIndexUrlForQuery(finalQuery);
-      }
+      await insertCandidateProfile({
+        participant_id: participantId,
+        submission_id: randomId("s"),
+        source_type: submission.source_type,
+        raw_role: anonymizeText(submission.rawRole),
+        raw_about: anonymizeText(submission.augmentedAbout),
+
+        language: clean(llm?.language) || null,
+        normalized_role: clean(llm?.normalized_role) || null,
+        normalized_roles: asArray(llm?.normalized_roles),
+        danish_keywords: asArray(llm?.danish_keywords),
+        english_keywords: asArray(llm?.english_keywords),
+        adjacent_roles: asArray(llm?.adjacent_roles),
+
+        skills: asArray(llm?.skills),
+        industries: asArray(llm?.industries),
+        education: [],
+        languages: [],
+        years_experience: null,
+        seniority: clean(llm?.seniority) || null,
+        summary: clean(llm?.summary) || null,
+        jobindex_query: finalQuery,
+
+        user_education: anonymizeText(submission.structured.education || ""),
+        user_skills: submission.structured.skills.map(anonymizeText),
+        user_languages: submission.structured.languages.map(anonymizeText),
+        user_years_experience: asNullableNumber(submission.structured.yearsExperience),
+
+        consent: true,
+      });
+
+      if (jobindexAllLink) jobindexAllLink.href = jobIndexUrlForQuery(finalQuery);
 
       setStatus("Finding jobs…");
       setAria("Finding relevant jobs.");
@@ -665,20 +643,6 @@ form?.addEventListener("submit", async (e) => {
     const upload = await uploadCvPdf(submission.file);
 
     try {
-      setStatus("Saving metadata…");
-      setAria("Saving your submission.");
-
-      const payload = {
-        participant_id: participantId,
-        submission_id: randomId("s"),
-        input_type: "cv_pdf",
-        role: anonymizeText(`CV upload: ${submission.file.name}`),
-        about: anonymizeText(`Uploaded PDF CV: ${submission.file.name}`),
-        consent: true,
-      };
-
-      await insertResponse(payload);
-
       setStatus("Parsing CV with AI…");
       setAria("Parsing your CV with AI.");
       clearParsedProfile();
@@ -695,9 +659,41 @@ form?.addEventListener("submit", async (e) => {
         clean(parsedCv?.normalized_role) ||
         "job";
 
-      if (jobindexAllLink) {
-        jobindexAllLink.href = jobIndexUrlForQuery(finalQuery);
-      }
+      await insertCandidateProfile({
+        participant_id: participantId,
+        submission_id: randomId("s"),
+        source_type: submission.source_type,
+        raw_role: anonymizeText(`CV upload: ${submission.file.name}`),
+        raw_about: anonymizeText(`Uploaded PDF CV: ${submission.file.name}`),
+
+        language: clean(parsedCv?.language) || null,
+        normalized_role: clean(parsedCv?.normalized_role) || null,
+        normalized_roles: asArray(parsedCv?.normalized_roles),
+        danish_keywords: asArray(parsedCv?.danish_keywords),
+        english_keywords: asArray(parsedCv?.english_keywords),
+        adjacent_roles: asArray(parsedCv?.adjacent_roles),
+
+        skills: asArray(parsedCv?.skills),
+        industries: asArray(parsedCv?.industries),
+        education: asArray(parsedCv?.education),
+        languages: asArray(parsedCv?.languages),
+        years_experience: asNullableNumber(parsedCv?.years_experience),
+        seniority: clean(parsedCv?.seniority) || null,
+        summary: clean(parsedCv?.summary) || null,
+        jobindex_query: finalQuery,
+
+        user_education: null,
+        user_skills: [],
+        user_languages: [],
+        user_years_experience: null,
+
+        consent: true,
+        ocr_text_preview: clean(parsedCv?.ocr_text_preview) || null,
+        ocr_text_length: asNullableNumber(parsedCv?.ocr_text_length),
+        pages_processed: asNullableNumber(parsedCv?.pages_processed),
+      });
+
+      if (jobindexAllLink) jobindexAllLink.href = jobIndexUrlForQuery(finalQuery);
 
       setStatus("Finding jobs…");
       setAria("Finding relevant jobs.");
