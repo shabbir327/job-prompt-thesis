@@ -1,4 +1,3 @@
-import { supabase } from "./supabaseClient.js";
 import { anonymizeText, randomId, getOrCreateParticipantId } from "./anonymize.js";
 
 const $ = (sel) => document.querySelector(sel);
