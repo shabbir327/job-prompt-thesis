@@ -22,11 +22,10 @@
     </header>
 
     <section class="hero">
-      <!-- LEFT PANEL -->
       <div class="panel">
         <div class="top">
           <p class="kicker">Academic research prototype</p>
-          <h2 class="title">Find career directions from prompts or CVs.</h2>
+          <h2 class="title">Find career directions from your prompt and/or CV.</h2>
 
           <p class="subtitle subtitleWide">
             <strong>Job Prompt Studio (JPS)</strong> is a thesis prototype from the
@@ -35,152 +34,116 @@
           </p>
 
           <p class="subtitle subtitleWide">
-            You can either describe the kind of role you want or upload your PDF CV.
-            Your input helps improve future recommendation systems for academic research.
+            You can describe the role you want, upload your PDF CV, or use both together.
+            Using both usually gives the best recommendation quality.
           </p>
         </div>
 
-        <div class="modeSwitch" role="tablist" aria-label="Input mode selector">
-          <button
-            class="modeBtn active"
-            id="promptModeBtn"
-            type="button"
-            role="tab"
-            aria-selected="true"
-            aria-controls="promptModePanel"
-          >
-            Write a Job Prompt
-          </button>
-
-          <button
-            class="modeBtn"
-            id="cvModeBtn"
-            type="button"
-            role="tab"
-            aria-selected="false"
-            aria-controls="cvModePanel"
-          >
-            Upload a PDF CV
-          </button>
-        </div>
-
         <form id="jobForm" autocomplete="on">
-          <!-- PROMPT MODE -->
-          <div id="promptModePanel">
-            <div class="field">
-              <label for="role">1) What job are you looking for?</label>
-              <input
-                id="role"
-                name="role"
-                type="text"
-                placeholder="e.g., Data Scientist, Software Engineer, HR Specialist"
-                maxlength="120"
-              />
-            </div>
-
-            <div class="field">
-              <label for="experience">2) Past experience & interests</label>
-              <textarea
-                id="experience"
-                name="experience"
-                placeholder="Write a few lines about your experience, strengths, tools, industries, and what kind of work excites you."
-                maxlength="1200"
-              ></textarea>
-            </div>
-
-            <div class="grid2">
-              <div class="field">
-                <label for="education">3) Education</label>
-                <input
-                  id="education"
-                  name="education"
-                  type="text"
-                  placeholder="e.g., MSc Data Science, BSc Computer Science"
-                  maxlength="200"
-                />
-              </div>
-
-              <div class="field">
-                <label for="yearsExperience">4) Years of experience</label>
-                <input
-                  id="yearsExperience"
-                  name="yearsExperience"
-                  type="number"
-                  min="0"
-                  max="60"
-                  step="0.5"
-                  placeholder="e.g., 3"
-                />
-              </div>
-            </div>
-
-            <div class="field">
-              <label for="skills">5) Skills</label>
-              <input
-                id="skills"
-                name="skills"
-                type="text"
-                placeholder="e.g., Python, SQL, Power BI, Project Management"
-                maxlength="400"
-              />
-              <p class="fieldNote">
-                Separate skills with commas.
-              </p>
-            </div>
-
-            <div class="field">
-              <label for="languages">6) Languages</label>
-              <input
-                id="languages"
-                name="languages"
-                type="text"
-                placeholder="e.g., English, Danish, German"
-                maxlength="200"
-              />
-              <p class="fieldNote">
-                Separate languages with commas.
-              </p>
-            </div>
-
-            <div class="field">
-              <label for="location">7) Location</label>
-              <input
-                id="location"
-                name="location"
-                type="text"
-                placeholder="e.g., Copenhagen, Berlin, Odense"
-                maxlength="200"
-              />
-              <p class="fieldNote">
-                Separate locations with commas.
-              </p>
-            </div>
-
+          <div class="field">
+            <label for="role">1) What job are you looking for?</label>
+            <input
+              id="role"
+              name="role"
+              type="text"
+              placeholder="e.g., Data Scientist, Software Engineer, HR Specialist"
+              maxlength="120"
+            />
           </div>
 
-          <!-- CV MODE -->
-          <div id="cvModePanel" class="hidden">
+          <div class="field">
+            <label for="experience">2) Past experience & interests</label>
+            <textarea
+              id="experience"
+              name="experience"
+              placeholder="Write a few lines about your experience, strengths, tools, industries, and what kind of work excites you."
+              maxlength="1200"
+            ></textarea>
+          </div>
+
+          <div class="grid2">
             <div class="field">
-              <label for="cvFile">1) Upload your CV</label>
+              <label for="education">3) Education</label>
               <input
-                id="cvFile"
-                name="cvFile"
-                type="file"
-                accept=".pdf,application/pdf"
+                id="education"
+                name="education"
+                type="text"
+                placeholder="e.g., MSc Data Science, BSc Computer Science"
+                maxlength="200"
               />
-              <p class="fieldNote">
-                Accepted format: PDF only.
-              </p>
             </div>
 
-            <div class="field uploadInfo">
-              <label>2) Privacy-aware parsing</label>
-              <p class="fieldNote">
-                Uploaded CVs are processed through OCR and privacy redaction before parsing.
-                Direct identifiers such as name, email, phone number, date of birth,
-                address, and URLs are masked before AI-based extraction.
-              </p>
+            <div class="field">
+              <label for="yearsExperience">4) Years of experience</label>
+              <input
+                id="yearsExperience"
+                name="yearsExperience"
+                type="number"
+                min="0"
+                max="60"
+                step="0.5"
+                placeholder="e.g., 3"
+              />
             </div>
+          </div>
+
+          <div class="field">
+            <label for="skills">5) Skills</label>
+            <input
+              id="skills"
+              name="skills"
+              type="text"
+              placeholder="e.g., Python, SQL, Power BI, Project Management"
+              maxlength="400"
+            />
+            <p class="fieldNote">Separate skills with commas.</p>
+          </div>
+
+          <div class="field">
+            <label for="languages">6) Languages</label>
+            <input
+              id="languages"
+              name="languages"
+              type="text"
+              placeholder="e.g., English, Danish, German"
+              maxlength="200"
+            />
+            <p class="fieldNote">Separate languages with commas.</p>
+          </div>
+
+          <div class="field">
+            <label for="location">7) Preferred job locations</label>
+            <input
+              id="location"
+              name="location"
+              type="text"
+              placeholder="e.g., Copenhagen, Aarhus, Odense"
+              maxlength="200"
+            />
+            <p class="fieldNote">Separate locations with commas.</p>
+          </div>
+
+          <div class="field">
+            <label for="cvFile">8) Upload your CV (optional)</label>
+            <input
+              id="cvFile"
+              name="cvFile"
+              type="file"
+              accept=".pdf,application/pdf"
+            />
+            <p class="fieldNote">
+              Accepted format: PDF only. If uploaded, the CV will be OCR-processed,
+              privacy-redacted, and parsed together with your input.
+            </p>
+          </div>
+
+          <div class="field uploadInfo">
+            <label>Privacy-aware parsing</label>
+            <p class="fieldNote">
+              Uploaded CVs are processed through OCR and privacy redaction before parsing.
+              Direct identifiers such as name, email, phone number, date of birth,
+              address, and URLs are masked before AI-based extraction.
+            </p>
           </div>
 
           <div class="field">
@@ -197,7 +160,7 @@
 
           <div class="actions">
             <div class="hint">
-              Tip: the more detail you provide, the better the recommendations and parsing quality.
+              Tip: using both a role description and a CV usually improves recommendation quality.
             </div>
 
             <div class="btnRow">
@@ -210,22 +173,21 @@
         </form>
       </div>
 
-      <!-- RIGHT PANEL -->
       <aside class="panel summary" aria-label="Live preview and recommendation results">
         <div class="top">
           <p class="kicker">Preview</p>
           <h2 class="title titleSmall">AI profile insights and job matches.</h2>
           <p class="subtitle subtitleWide">
             This preview updates as you type or upload content. Click
-            <b>Get recommendation</b> to save your response, parse the input,
+            <b>Get recommendation</b> to save your response, parse your input,
             and fetch relevant job suggestions.
           </p>
         </div>
 
         <div class="mini">
           <div class="card">
-            <h3>Input mode</h3>
-            <p id="previewMode">Job Prompt</p>
+            <h3>Input summary</h3>
+            <p id="previewMode">Prompt and/or CV</p>
           </div>
 
           <div class="card">
@@ -255,7 +217,7 @@
             <h3>Suggested jobs</h3>
 
             <p id="jobsHint" class="lockedHint">
-              Click <b>Get recommendation</b> to save your response and fetch matching jobs.
+              Click <b>Get recommendation</b> to fetch matching jobs.
             </p>
 
             <p id="jobsStatus" class="lockedHint" style="display:none;"></p>
