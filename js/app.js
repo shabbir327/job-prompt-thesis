@@ -525,6 +525,11 @@ function onEdit() {
   setStatus("Draft · editing");
 }
 
+async function insertCandidateProfile(payload) {
+  const { error } = await supabase.from("candidate_profiles").insert([payload]);
+  if (error) throw error;
+}
+
 async function updateRecommendationRating(submissionId, ratingValue) {
   const { data, error } = await supabase
     .from("candidate_profiles")
@@ -540,19 +545,6 @@ async function updateRecommendationRating(submissionId, ratingValue) {
   return data[0];
 }
 
-async function insertCandidateProfile(payload) {
-  const { error } = await supabase.from("candidate_profiles").insert([payload]);
-  if (error) throw error;
-}
-
-async function updateRecommendationRating(submissionId, ratingValue) {
-  const { error } = await supabase
-    .from("candidate_profiles")
-    .update({ recommendation_rating: ratingValue })
-    .eq("submission_id", submissionId);
-
-  if (error) throw error;
-}
 
 async function buildMultilingualQuery(roleText, aboutText) {
   const { data, error } = await supabase.functions.invoke("mistral-query-builder", {
