@@ -227,7 +227,7 @@ function normalizeTextKey(text) {
     .trim();
 }
 
-function slugifyJobindexPart(text) {
+function slugifyPart(text) {
   return normalizeTextKey(text)
     .replace(/_/g, "")
     .replace(/\s+/g, "-")
@@ -236,21 +236,22 @@ function slugifyJobindexPart(text) {
 }
 
 function jobBoardUrlForResult(queryText, locationText = "", portal = "jobindex") {
-  const qSlug = slugifyJobindexPart(queryText);
-  const locationSlug = slugifyJobindexPart(locationText);
+  const qSlug = slugifyPart(queryText);
+  const locationSlug = slugifyPart(locationText);
 
   if (portal === "stepstone") {
     if (qSlug && locationSlug) {
-      return `https://www.stepstone.de/jobs/${qSlug}/in-${locationSlug}`;
+      return `https://www.stepstone.de/jobs/${qSlug}/in-${locationSlug}/`;
     }
     if (qSlug) {
-      return `https://www.stepstone.de/jobs/${qSlug}`;
+      return `https://www.stepstone.de/jobs/${qSlug}/`;
     }
     return "https://www.stepstone.de/";
   }
 
-  if (qSlug && locationSlug) {
-    return `https://www.jobindex.dk/jobsoegning/${qSlug}/${locationSlug}`;
+  if (locationSlug && clean(queryText)) {
+    const q = encodeURIComponent(clean(queryText)).replace(/%20/g, "+");
+    return `https://www.jobindex.dk/jobsoegning/${locationSlug}?q=${q}`;
   }
 
   if (clean(queryText)) {
@@ -279,12 +280,15 @@ function populateLocationOptions(countryCode) {
   if (!location) return;
 
   const locations = SUPPORTED_LOCATIONS[countryCode] || [];
+  const current = clean(location.value);
+
   location.innerHTML = `<option value="">Select location</option>`;
 
   for (const loc of locations) {
     const option = document.createElement("option");
     option.value = loc;
     option.textContent = loc;
+    if (loc === current) option.selected = true;
     location.appendChild(option);
   }
 }
@@ -336,9 +340,7 @@ function buildAugmentedAbout(rawAbout, structured) {
   if (clean(structured.yearsExperience)) parts.push(`Years of experience:\n${structured.yearsExperience}`);
   if (structured.skills?.length) parts.push(`Skills:\n${structured.skills.join(", ")}`);
   if (structured.languages?.length) parts.push(`Languages:\n${structured.languages.join(", ")}`);
-  if (structured.country) {
-    parts.push(`Preferred country:\n${structured.country === "DK" ? "Denmark" : "Germany"}`);
-  }
+  if (structured.country) parts.push(`Preferred country:\n${structured.country === "DK" ? "Denmark" : "Germany"}`);
   if (structured.location?.length) parts.push(`Location:\n${structured.location.join(", ")}`);
 
   return parts.join("\n\n").trim();
@@ -411,8 +413,12 @@ function renderParsedProfile(data) {
 
   const sections = [
     ["Detected language", data?.language],
+    ["Search country", data?.search_country],
     ["Normalized role", data?.normalized_role],
     ["Normalized roles", data?.normalized_roles],
+    ["Portal query role", data?.portal_query_role],
+    ["Jobindex query", data?.jobindex_query],
+    ["Stepstone query", data?.stepstone_query],
     ["Role-specific experience", formatRoleExperience(data?.role_experience)],
     ["Danish keywords", data?.danish_keywords],
     ["English keywords", data?.english_keywords],
@@ -425,7 +431,6 @@ function renderParsedProfile(data) {
     ["Years of relevant experience", data?.years_experience],
     ["Seniority", data?.seniority],
     ["Summary", data?.summary],
-    ["Jobindex query", data?.jobindex_query],
   ]
     .map(([label, value]) => [label, normalizeDisplayValue(value)])
     .filter(([, value]) => clean(value));
@@ -532,9 +537,10 @@ async function buildMultilingualQuery(roleText, aboutText) {
   return data;
 }
 
-async function fetchTopJobs(queryText, locationText = "") {
+async function fetchTopJobs(queryText, locationText = "", country = "") {
   const q = clean(queryText);
-  const location = clean(locationText);
+  const locationValue = clean(locationText);
+  const countryValue = clean(country);
 
   if (!q) {
     return {
@@ -548,7 +554,7 @@ async function fetchTopJobs(queryText, locationText = "") {
   }
 
   const { data, error } = await supabase.functions.invoke("jobindex-top3", {
-    body: { q, location },
+    body: { q, location: locationValue, country: countryValue },
   });
 
   if (error) throw new Error(error.message || "jobindex-top3 failed");
@@ -600,9 +606,33 @@ function mergeProfiles(promptData, cvData, promptInput) {
   const cvLocations = asArray(cvData?.location);
   const mergedLocations = [...new Set([...promptLocations, ...cvLocations])];
 
+  const searchCountry =
+    clean(promptData?.search_country) ||
+    clean(cvData?.search_country) ||
+    clean(promptInput?.structured?.country) ||
+    inferCountryFromLocations(mergedLocations);
+
+  const portalQueryRole =
+    clean(promptData?.portal_query_role) ||
+    clean(cvData?.portal_query_role) ||
+    clean(promptData?.normalized_role) ||
+    clean(cvData?.normalized_role) ||
+    clean(promptInput?.rawRole);
+
+  const jobindexQuery =
+    clean(promptData?.jobindex_query) ||
+    clean(cvData?.jobindex_query) ||
+    portalQueryRole;
+
+  const stepstoneQuery =
+    clean(promptData?.stepstone_query) ||
+    clean(cvData?.stepstone_query) ||
+    portalQueryRole;
+
   return {
     source_type: cvData ? "prompt_cv_combined" : "job_prompt",
     language: clean(cvData?.language || promptData?.language) || null,
+    search_country: searchCountry || null,
     normalized_role: clean(promptData?.normalized_role || cvData?.normalized_role) || null,
     normalized_roles: [
       ...new Set([
@@ -610,6 +640,9 @@ function mergeProfiles(promptData, cvData, promptInput) {
         ...asArray(cvData?.normalized_roles),
       ]),
     ],
+    portal_query_role: portalQueryRole || null,
+    jobindex_query: jobindexQuery || null,
+    stepstone_query: stepstoneQuery || null,
     role_experience: Array.isArray(cvData?.role_experience)
       ? cvData.role_experience
       : Array.isArray(promptData?.role_experience)
@@ -664,9 +697,15 @@ function mergeProfiles(promptData, cvData, promptInput) {
       asNullableNumber(promptInput?.structured?.yearsExperience),
     seniority: clean(cvData?.seniority || promptData?.seniority) || null,
     summary: clean(cvData?.summary || promptData?.summary) || null,
-    jobindex_query:
-      clean(promptData?.jobindex_query || cvData?.jobindex_query || promptInput?.rawRole) || "job",
   };
+}
+
+function getPortalQuery(merged, country) {
+  if (country === "DE") {
+    return clean(merged?.stepstone_query) || clean(merged?.portal_query_role) || clean(merged?.normalized_role);
+  }
+
+  return clean(merged?.jobindex_query) || clean(merged?.portal_query_role) || clean(merged?.normalized_role);
 }
 
 function updatePreview() {
@@ -795,12 +834,18 @@ form?.addEventListener("submit", async (e) => {
       structured,
     });
 
-    if (!structured.country && merged.location.length) {
-      const inferred = inferCountryFromLocations(merged.location);
-      if (inferred && jobCountry) {
-        jobCountry.value = inferred;
-        populateLocationOptions(inferred);
-      }
+    const finalCountry =
+      clean(structured.country) ||
+      clean(merged.search_country) ||
+      inferCountryFromLocations(merged.location);
+
+    if (finalCountry && jobCountry && !jobCountry.value) {
+      jobCountry.value = finalCountry;
+      populateLocationOptions(finalCountry);
+    }
+
+    if (structured.location.length && location && !location.value) {
+      location.value = structured.location[0];
     }
 
     renderParsedProfile(merged);
@@ -813,7 +858,8 @@ form?.addEventListener("submit", async (e) => {
         ? merged.location[0]
         : "";
 
-    const searchResult = await fetchTopJobs(merged.jobindex_query, primaryLocation);
+    const portalQuery = getPortalQuery(merged, finalCountry);
+    const searchResult = await fetchTopJobs(portalQuery, primaryLocation, finalCountry);
     const jobs = searchResult.jobs;
     const recCols = buildRecommendationColumns(jobs);
 
@@ -839,7 +885,7 @@ form?.addEventListener("submit", async (e) => {
       years_experience: merged.years_experience,
       seniority: merged.seniority,
       summary: merged.summary,
-      jobindex_query: searchResult.shortQuery || merged.jobindex_query,
+      jobindex_query: searchResult.shortQuery || portalQuery,
 
       user_education: structured.education ? anonymizeText(structured.education) : null,
       user_skills: structured.skills.map(anonymizeText),
@@ -858,7 +904,7 @@ form?.addEventListener("submit", async (e) => {
       jobindexAllLink.href =
         clean(searchResult.searchUrl) ||
         jobBoardUrlForResult(
-          searchResult.shortQuery || merged.jobindex_query,
+          searchResult.shortQuery || portalQuery,
           primaryLocation,
           searchResult.portal
         );
@@ -867,7 +913,7 @@ form?.addEventListener("submit", async (e) => {
     if (!jobs.length) {
       setJobsUI({
         state: "empty",
-        message: "No results found. Try refining the prompt or choosing another supported location in Denmark or Germany.",
+        message: "No results found. Try refining the role or choosing another supported location in Denmark or Germany.",
       });
       setStatus("Saved · no results");
     } else {
