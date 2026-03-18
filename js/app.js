@@ -97,26 +97,16 @@ function updateCounter() {
   charCount.textContent = `${used} / ${max}`;
 }
 
-function buildSearchQueryForJobindex(merged) {
-  const normalizedRole = clean(merged?.normalized_role);
-  const rawQuery = clean(merged?.jobindex_query);
-
-  if (normalizedRole) return normalizedRole;
-
-  if (!rawQuery) return "";
-
-  return rawQuery
-    .split(/\s+/)
-    .slice(0, 3)
-    .join(" ");
-}
-
 function normalizeTextKey(text) {
   return clean(text)
     .toLowerCase()
     .replace(/æ/g, "ae")
     .replace(/ø/g, "oe")
     .replace(/å/g, "aa")
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue")
+    .replace(/ß/g, "ss")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^\w\s-]/g, "")
@@ -132,9 +122,19 @@ function slugifyJobindexPart(text) {
     .replace(/^-|-$/g, "");
 }
 
-function jobIndexUrlForQuery(queryText, locationText = "") {
+function jobBoardUrlForResult(queryText, locationText = "", portal = "jobindex") {
   const qSlug = slugifyJobindexPart(queryText);
   const locationSlug = slugifyJobindexPart(locationText);
+
+  if (portal === "stepstone") {
+    if (qSlug && locationSlug) {
+      return `https://www.stepstone.de/jobs/${qSlug}/in-${locationSlug}`;
+    }
+    if (qSlug) {
+      return `https://www.stepstone.de/jobs/${qSlug}`;
+    }
+    return "https://www.stepstone.de/";
+  }
 
   if (qSlug && locationSlug) {
     return `https://www.jobindex.dk/jobsoegning/${qSlug}/${locationSlug}`;
@@ -391,7 +391,14 @@ async function fetchTopJobs(queryText, locationText = "") {
   const q = clean(queryText);
   const location = clean(locationText);
 
-  if (!q) return [];
+  if (!q) return {
+    jobs: [],
+    portal: "jobindex",
+    searchUrl: "",
+    normalizedCountry: "",
+    normalizedLocation: "",
+    shortQuery: "",
+  };
 
   const { data, error } = await supabase.functions.invoke("jobindex-top3", {
     body: { q, location },
@@ -400,7 +407,14 @@ async function fetchTopJobs(queryText, locationText = "") {
   if (error) throw new Error(error.message || "jobindex-top3 failed");
   if (data?.error) throw new Error(data.error);
 
-  return data?.jobs || [];
+  return {
+    jobs: Array.isArray(data?.jobs) ? data.jobs : [],
+    portal: clean(data?.portal) || "jobindex",
+    searchUrl: clean(data?.searchUrl),
+    normalizedCountry: clean(data?.normalizedCountry),
+    normalizedLocation: clean(data?.normalizedLocation),
+    shortQuery: clean(data?.shortQuery) || q,
+  };
 }
 
 async function uploadCvPdf(file) {
@@ -637,12 +651,8 @@ form?.addEventListener("submit", async (e) => {
         ? merged.location[0]
         : "";
 
-    const searchQuery = buildSearchQueryForJobindex(merged);
-    let jobs = await fetchTopJobs(searchQuery, primaryLocation);
-
-    if (!jobs.length && primaryLocation) {
-      jobs = await fetchTopJobs(searchQuery, "");
-    }
+    const searchResult = await fetchTopJobs(merged.jobindex_query, primaryLocation);
+    const jobs = searchResult.jobs;
     const recCols = buildRecommendationColumns(jobs);
 
     await insertCandidateProfile({
@@ -667,7 +677,7 @@ form?.addEventListener("submit", async (e) => {
       years_experience: merged.years_experience,
       seniority: merged.seniority,
       summary: merged.summary,
-      jobindex_query: searchQuery,
+      jobindex_query: searchResult.shortQuery || merged.jobindex_query,
 
       user_education: structured.education ? anonymizeText(structured.education) : null,
       user_skills: structured.skills.map(anonymizeText),
@@ -683,7 +693,13 @@ form?.addEventListener("submit", async (e) => {
     });
 
     if (jobindexAllLink) {
-      jobindexAllLink.href = jobIndexUrlForQuery(merged.jobindex_query, primaryLocation);
+      jobindexAllLink.href =
+        clean(searchResult.searchUrl) ||
+        jobBoardUrlForResult(
+          searchResult.shortQuery || merged.jobindex_query,
+          primaryLocation,
+          searchResult.portal
+        );
     }
 
     if (!jobs.length) {
