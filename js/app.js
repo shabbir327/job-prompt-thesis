@@ -97,9 +97,33 @@ function updateCounter() {
   charCount.textContent = `${used} / ${max}`;
 }
 
-function jobIndexUrlForQuery(queryText) {
-  const q = encodeURIComponent(clean(queryText)).replace(/%20/g, "+");
-  return `https://www.jobindex.dk/jobsoegning?q=${q}`;
+function slugifyJobindexPart(text) {
+  return clean(text)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9æøåÆØÅ\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-");
+}
+
+function jobIndexUrlForQuery(queryText, locationText = "") {
+  const q = slugifyJobindexPart(queryText);
+  const location = slugifyJobindexPart(locationText);
+
+  if (q && location) {
+    return `https://www.jobindex.dk/jobsoegning/${q}/${location}`;
+  }
+
+  if (q) {
+    return `https://www.jobindex.dk/jobsoegning?q=${encodeURIComponent(clean(queryText)).replace(/%20/g, "+")}`;
+  }
+
+  return "https://www.jobindex.dk/jobsoegning";
+}
+
+if (jobindexAllLink) {
+  jobindexAllLink.href = jobIndexUrlForQuery(merged.jobindex_query, primaryLocation);
 }
 
 function escapeHtml(str) {
@@ -311,14 +335,30 @@ function setJobsUI({ state = "idle", message = "", jobs = [] } = {}) {
   }
 }
 
-function updatePreview() {
-  const summary = currentInputSummary();
-  if (previewMode) previewMode.textContent = summary.modeLabel;
-  if (previewRole) previewRole.textContent = summary.roleText;
-  if (previewExperience) previewExperience.textContent = summary.contentText;
-  if (previewStructured) previewStructured.textContent = summary.structuredText;
-  updateCounter();
-  if (lastSaved) lastSaved.textContent = `Updated ${nowStamp()}`;
+function buildRecommendationColumns(jobs) {
+  const top3 = Array.isArray(jobs) ? jobs.slice(0, 3) : [];
+  const job1 = top3[0] || {};
+  const job2 = top3[1] || {};
+  const job3 = top3[2] || {};
+
+  return {
+    rec_job_1_title: clean(job1.title) || null,
+    rec_job_1_url: clean(job1.url) || null,
+
+    rec_job_2_title: clean(job2.title) || null,
+    rec_job_2_url: clean(job2.url) || null,
+
+    rec_job_3_title: clean(job3.title) || null,
+    rec_job_3_url: clean(job3.url) || null,
+  };
+}
+
+function onEdit() {
+  updatePreview();
+  clearParsedProfile();
+  setJobsUI({ state: "idle" });
+  if (jobindexAllLink) jobindexAllLink.href = "#";
+  setStatus("Draft · editing");
 }
 
 async function insertCandidateProfile(payload) {
@@ -335,12 +375,19 @@ async function buildMultilingualQuery(roleText, aboutText) {
   return data;
 }
 
-async function fetchTopJobs(queryText) {
+async function fetchTopJobs(queryText, locationText = "") {
   const q = clean(queryText);
+  const location = clean(locationText);
+
   if (!q) return [];
-  const { data, error } = await supabase.functions.invoke("jobindex-top3", { body: { q } });
+
+  const { data, error } = await supabase.functions.invoke("jobindex-top3", {
+    body: { q, location },
+  });
+
   if (error) throw new Error(error.message || "jobindex-top3 failed");
   if (data?.error) throw new Error(data.error);
+
   return data?.jobs || [];
 }
 
@@ -429,14 +476,6 @@ function mergeProfiles(promptData, cvData, promptInput) {
     jobindex_query:
       clean(promptData?.jobindex_query || cvData?.jobindex_query || promptInput?.rawRole) || "job",
   };
-}
-
-function onEdit() {
-  updatePreview();
-  clearParsedProfile();
-  setJobsUI({ state: "idle" });
-  if (jobindexAllLink) jobindexAllLink.href = "#";
-  setStatus("Draft · editing");
 }
 
 [role, experience, education, yearsExperience, skills, languages, location, consentEl, cvFile].forEach((el) => {
@@ -548,6 +587,17 @@ form?.addEventListener("submit", async (e) => {
 
     renderParsedProfile(merged);
 
+    setStatus("Finding jobs…");
+    setAria("Finding relevant jobs.");
+
+    const primaryLocation =
+    Array.isArray(merged.location) && merged.location.length
+    ? merged.location[0]
+    : "";
+
+    const jobs = await fetchTopJobs(merged.jobindex_query, primaryLocation);
+    const recCols = buildRecommendationColumns(jobs);
+
     await insertCandidateProfile({
       participant_id: participantId,
       submission_id: randomId("s"),
@@ -581,14 +631,11 @@ form?.addEventListener("submit", async (e) => {
       ocr_text_preview: clean(cvParsed?.ocr_text_preview) || null,
       ocr_text_length: asNullableNumber(cvParsed?.ocr_text_length),
       pages_processed: asNullableNumber(cvParsed?.pages_processed),
+
+      ...recCols,
     });
 
     if (jobindexAllLink) jobindexAllLink.href = jobIndexUrlForQuery(merged.jobindex_query);
-
-    setStatus("Finding jobs…");
-    setAria("Finding relevant jobs.");
-
-    const jobs = await fetchTopJobs(merged.jobindex_query);
 
     if (!jobs.length) {
       setJobsUI({
