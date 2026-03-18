@@ -288,7 +288,8 @@ function setRatingEnabled(enabled, message = "") {
     if (!enabled) recommendationRating.value = "";
   }
   if (ratingStatus) {
-    ratingStatus.textContent = message || (enabled ? "Please rate the recommendations." : "Rate after recommendations appear.");
+    ratingStatus.textContent =
+      message || (enabled ? "Please rate the recommendations." : "Rate after recommendations appear.");
   }
 }
 
@@ -565,6 +566,7 @@ async function fetchTopJobs(queryText, locationText = "", country = "") {
       normalizedCountry: "",
       normalizedLocation: "",
       shortQuery: "",
+      portal_error: "",
     };
   }
 
@@ -582,6 +584,7 @@ async function fetchTopJobs(queryText, locationText = "", country = "") {
     normalizedCountry: clean(data?.normalizedCountry),
     normalizedLocation: clean(data?.normalizedLocation),
     shortQuery: clean(data?.shortQuery) || q,
+    portal_error: clean(data?.portal_error),
   };
 }
 
@@ -888,26 +891,28 @@ form?.addEventListener("submit", async (e) => {
     const searchResult = await fetchTopJobs(portalQuery, primaryLocation, finalCountry);
     const jobs = searchResult.jobs;
     const recCols = buildRecommendationColumns(jobs);
-    
+
     const usedLocationFallback =
-      clean(searchResult.normalizedLocation) &&
+      Boolean(clean(searchResult.normalizedLocation)) &&
       Array.isArray(jobs) &&
       jobs.length > 0 &&
-      clean(searchResult.searchUrl) &&
+      Boolean(clean(searchResult.searchUrl)) &&
       !clean(searchResult.searchUrl).includes(clean(searchResult.normalizedLocation));
-    
+
     let jobsMessage = "";
-    
-    if (!jobs.length) {
+
+    if (clean(searchResult.portal_error)) {
+      jobsMessage =
+        finalCountry === "DE"
+          ? "Germany search is temporarily unavailable from the current server environment. You can still open the source portal below."
+          : "Search is temporarily unavailable. Please try again.";
+    } else if (!jobs.length) {
       jobsMessage =
         "No results found. Try refining the role or choosing another supported location in Denmark or Germany.";
     } else if (primaryLocation && usedLocationFallback) {
-      jobsMessage =
-        `No jobs were found in ${primaryLocation}. Showing related jobs from a broader search instead.`;
+      jobsMessage = `No jobs were found in ${primaryLocation}. Showing related jobs from a broader search instead.`;
     }
-    
-    const jobs = searchResult.jobs;
-    const recCols = buildRecommendationColumns(jobs);
+
     const submissionId = randomId("s");
 
     await insertCandidateProfile({
@@ -975,14 +980,12 @@ form?.addEventListener("submit", async (e) => {
         state: "ready",
         jobs,
       });
-    
-      if (jobsMessage) {
-        if (jobsStatus) {
-          jobsStatus.style.display = "block";
-          jobsStatus.textContent = jobsMessage;
-        }
+
+      if (jobsMessage && jobsStatus) {
+        jobsStatus.style.display = "block";
+        jobsStatus.textContent = jobsMessage;
       }
-    
+
       setStatus("Saved · recommendation ready");
     }
 
