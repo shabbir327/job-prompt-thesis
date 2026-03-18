@@ -27,6 +27,9 @@ const location = $("#location");
 const cvFile = $("#cvFile");
 const consentEl = $("#consent");
 
+const recommendationRating = $("#recommendationRating");
+const ratingStatus = $("#ratingStatus");
+
 const previewMode = $("#previewMode");
 const previewRole = $("#previewRole");
 const previewExperience = $("#previewExperience");
@@ -43,9 +46,13 @@ const jobindexAllLink = $("#jobindexAllLink");
 
 const participantId = getOrCreateParticipantId();
 
+let latestSubmissionId = "";
+let latestRecommendationReady = false;
+
 const SUPPORTED_LOCATIONS = {
   DK: [
     "København",
+    "Storkøbenhavn",
     "Aarhus",
     "Odense",
     "Aalborg",
@@ -86,8 +93,7 @@ const SUPPORTED_LOCATIONS = {
     "Fyn",
     "Midtjylland",
     "Sydjylland",
-    "Vestjylland",
-    "Storkøbenhavn"
+    "Vestjylland"
   ],
   DE: [
     "Berlin",
@@ -276,6 +282,16 @@ function summarizeFilename(file) {
   return `${file.name} (${Math.round(file.size / 1024)} KB)`;
 }
 
+function setRatingEnabled(enabled, message = "") {
+  if (recommendationRating) {
+    recommendationRating.disabled = !enabled;
+    if (!enabled) recommendationRating.value = "";
+  }
+  if (ratingStatus) {
+    ratingStatus.textContent = message || (enabled ? "Please rate the recommendations." : "Rate after recommendations appear.");
+  }
+}
+
 function populateLocationOptions(countryCode) {
   if (!location) return;
 
@@ -291,19 +307,6 @@ function populateLocationOptions(countryCode) {
     if (loc === current) option.selected = true;
     location.appendChild(option);
   }
-}
-
-function inferCountryFromLocations(locationArray) {
-  const dkSet = new Set(SUPPORTED_LOCATIONS.DK.map((x) => x.toLowerCase()));
-  const deSet = new Set(SUPPORTED_LOCATIONS.DE.map((x) => x.toLowerCase()));
-
-  for (const loc of locationArray) {
-    const v = clean(loc).toLowerCase();
-    if (dkSet.has(v)) return "DK";
-    if (deSet.has(v)) return "DE";
-  }
-
-  return "";
 }
 
 function getStructuredPromptFields() {
@@ -519,10 +522,22 @@ function onEdit() {
   setJobsUI({ state: "idle" });
   if (jobindexAllLink) jobindexAllLink.href = "#";
   setStatus("Draft · editing");
+  setRatingEnabled(false, "Rate after recommendations appear.");
+  latestRecommendationReady = false;
+  latestSubmissionId = "";
 }
 
 async function insertCandidateProfile(payload) {
   const { error } = await supabase.from("candidate_profiles").insert([payload]);
+  if (error) throw error;
+}
+
+async function updateRecommendationRating(submissionId, ratingValue) {
+  const { error } = await supabase
+    .from("candidate_profiles")
+    .update({ recommendation_rating: ratingValue })
+    .eq("submission_id", submissionId);
+
   if (error) throw error;
 }
 
@@ -607,10 +622,9 @@ function mergeProfiles(promptData, cvData, promptInput) {
   const mergedLocations = [...new Set([...promptLocations, ...cvLocations])];
 
   const searchCountry =
-    clean(promptData?.search_country) ||
-    clean(cvData?.search_country) ||
     clean(promptInput?.structured?.country) ||
-    inferCountryFromLocations(mergedLocations);
+    clean(promptData?.search_country) ||
+    clean(cvData?.search_country);
 
   const portalQueryRole =
     clean(promptData?.portal_query_role) ||
@@ -704,7 +718,6 @@ function getPortalQuery(merged, country) {
   if (country === "DE") {
     return clean(merged?.stepstone_query) || clean(merged?.portal_query_role) || clean(merged?.normalized_role);
   }
-
   return clean(merged?.jobindex_query) || clean(merged?.portal_query_role) || clean(merged?.normalized_role);
 }
 
@@ -725,6 +738,24 @@ jobCountry?.addEventListener("change", () => {
   onEdit();
 });
 
+recommendationRating?.addEventListener("change", async () => {
+  const ratingValue = asNullableNumber(recommendationRating?.value);
+
+  if (!latestRecommendationReady || !latestSubmissionId || !ratingValue) {
+    return;
+  }
+
+  try {
+    await updateRecommendationRating(latestSubmissionId, ratingValue);
+    if (ratingStatus) ratingStatus.textContent = "Thanks — your rating has been saved.";
+    showToast("Rating saved");
+  } catch (err) {
+    console.error("Failed to save rating:", err);
+    if (ratingStatus) ratingStatus.textContent = "Could not save rating. Please try again.";
+    showToast("Could not save rating");
+  }
+});
+
 [role, experience, education, yearsExperience, skills, languages, location, consentEl, cvFile].forEach((el) => {
   if (!el) return;
   el.addEventListener("input", onEdit);
@@ -740,6 +771,9 @@ resetBtn?.addEventListener("click", () => {
   if (jobindexAllLink) jobindexAllLink.href = "#";
   if (lastSaved) lastSaved.textContent = "Live preview";
   setStatus("Thesis Prototype v1");
+  latestSubmissionId = "";
+  latestRecommendationReady = false;
+  setRatingEnabled(false, "Rate after recommendations appear.");
   updatePreview();
   role?.focus();
 });
@@ -796,6 +830,11 @@ form?.addEventListener("submit", async (e) => {
     return;
   }
 
+  if (!structured.country || !structured.location.length) {
+    showToast("Please select a supported country and location.");
+    return;
+  }
+
   try {
     if (submitBtn) submitBtn.disabled = true;
 
@@ -806,6 +845,9 @@ form?.addEventListener("submit", async (e) => {
       state: "loading",
       message: "Parsing your input and finding matching jobs…",
     });
+    setRatingEnabled(false, "Rate after recommendations appear.");
+    latestSubmissionId = "";
+    latestRecommendationReady = false;
 
     let promptParsed = null;
     let cvParsed = null;
@@ -834,38 +876,23 @@ form?.addEventListener("submit", async (e) => {
       structured,
     });
 
-    const finalCountry =
-      clean(structured.country) ||
-      clean(merged.search_country) ||
-      inferCountryFromLocations(merged.location);
-
-    if (finalCountry && jobCountry && !jobCountry.value) {
-      jobCountry.value = finalCountry;
-      populateLocationOptions(finalCountry);
-    }
-
-    if (structured.location.length && location && !location.value) {
-      location.value = structured.location[0];
-    }
-
     renderParsedProfile(merged);
 
     setStatus("Finding jobs…");
     setAria("Finding relevant jobs.");
 
-    const primaryLocation =
-      Array.isArray(merged.location) && merged.location.length
-        ? merged.location[0]
-        : "";
-
+    const finalCountry = clean(structured.country);
+    const primaryLocation = structured.location[0];
     const portalQuery = getPortalQuery(merged, finalCountry);
+
     const searchResult = await fetchTopJobs(portalQuery, primaryLocation, finalCountry);
     const jobs = searchResult.jobs;
     const recCols = buildRecommendationColumns(jobs);
+    const submissionId = randomId("s");
 
     await insertCandidateProfile({
       participant_id: participantId,
-      submission_id: randomId("s"),
+      submission_id: submissionId,
       source_type: merged.source_type,
       raw_role: rawRole ? anonymizeText(rawRole) : null,
       raw_about: rawAbout ? anonymizeText(augmentedAbout) : null,
@@ -887,18 +914,25 @@ form?.addEventListener("submit", async (e) => {
       summary: merged.summary,
       jobindex_query: searchResult.shortQuery || portalQuery,
 
+      user_country: finalCountry || null,
+      user_location: primaryLocation || null,
       user_education: structured.education ? anonymizeText(structured.education) : null,
       user_skills: structured.skills.map(anonymizeText),
       user_languages: structured.languages.map(anonymizeText),
       user_years_experience: asNullableNumber(structured.yearsExperience),
 
       consent: true,
+      recommendation_rating: null,
       ocr_text_preview: clean(cvParsed?.ocr_text_preview) || null,
       ocr_text_length: asNullableNumber(cvParsed?.ocr_text_length),
       pages_processed: asNullableNumber(cvParsed?.pages_processed),
 
       ...recCols,
     });
+
+    latestSubmissionId = submissionId;
+    latestRecommendationReady = true;
+    setRatingEnabled(true, "Please rate the recommendations.");
 
     if (jobindexAllLink) {
       jobindexAllLink.href =
@@ -933,6 +967,7 @@ form?.addEventListener("submit", async (e) => {
       state: "error",
       message: "Could not complete the recommendation right now. Please try again.",
     });
+    setRatingEnabled(false, "Rate after recommendations appear.");
     showToast(err?.message ? `Error: ${err.message}` : "Something went wrong.");
   } finally {
     if (submitBtn) submitBtn.disabled = false;
@@ -940,6 +975,7 @@ form?.addEventListener("submit", async (e) => {
 });
 
 populateLocationOptions("");
+setRatingEnabled(false, "Rate after recommendations appear.");
 updatePreview();
 clearParsedProfile();
 setJobsUI({ state: "idle" });
