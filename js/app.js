@@ -22,6 +22,7 @@ const education = $("#education");
 const yearsExperience = $("#yearsExperience");
 const skills = $("#skills");
 const languages = $("#languages");
+const jobCountry = $("#jobCountry");
 const location = $("#location");
 const cvFile = $("#cvFile");
 const consentEl = $("#consent");
@@ -41,6 +42,56 @@ const jobsList = $("#jobsList");
 const jobindexAllLink = $("#jobindexAllLink");
 
 const participantId = getOrCreateParticipantId();
+
+const SUPPORTED_LOCATIONS = {
+  DK: [
+    "Aarhus",
+    "Aalborg",
+    "Odense",
+    "Esbjerg",
+    "Vejle",
+    "Kolding",
+    "Horsens",
+    "Randers",
+    "Roskilde",
+    "Herning",
+    "Silkeborg",
+    "København",
+    "Nordsjælland",
+    "Fyn",
+    "Sydjylland",
+    "Vestjylland",
+    "Midtjylland",
+    "Sjælland",
+    "Bornholm"
+  ],
+  DE: [
+    "Berlin",
+    "Hamburg",
+    "München",
+    "Köln",
+    "Frankfurt am Main",
+    "Stuttgart",
+    "Düsseldorf",
+    "Dortmund",
+    "Essen",
+    "Leipzig",
+    "Bremen",
+    "Dresden",
+    "Hannover",
+    "Nürnberg",
+    "Bonn",
+    "Mannheim",
+    "Karlsruhe",
+    "Wiesbaden",
+    "Münster",
+    "Augsburg",
+    "Aachen",
+    "Bochum",
+    "Bielefeld",
+    "Freiburg"
+  ]
+};
 
 function clean(v) {
   return String(v ?? "").trim();
@@ -162,13 +213,41 @@ function summarizeFilename(file) {
   return `${file.name} (${Math.round(file.size / 1024)} KB)`;
 }
 
+function populateLocationOptions(countryCode) {
+  if (!location) return;
+
+  const locations = SUPPORTED_LOCATIONS[countryCode] || [];
+  location.innerHTML = `<option value="">Select location</option>`;
+
+  for (const loc of locations) {
+    const option = document.createElement("option");
+    option.value = loc;
+    option.textContent = loc;
+    location.appendChild(option);
+  }
+}
+
+function inferCountryFromLocations(locationArray) {
+  const dkSet = new Set(SUPPORTED_LOCATIONS.DK.map((x) => x.toLowerCase()));
+  const deSet = new Set(SUPPORTED_LOCATIONS.DE.map((x) => x.toLowerCase()));
+
+  for (const loc of locationArray) {
+    const v = clean(loc).toLowerCase();
+    if (dkSet.has(v)) return "DK";
+    if (deSet.has(v)) return "DE";
+  }
+
+  return "";
+}
+
 function getStructuredPromptFields() {
   return {
     education: clean(education?.value),
     yearsExperience: clean(yearsExperience?.value),
     skills: parseCommaList(skills?.value),
     languages: parseCommaList(languages?.value),
-    location: parseCommaList(location?.value),
+    country: clean(jobCountry?.value),
+    location: clean(location?.value) ? [clean(location.value)] : [],
   };
 }
 
@@ -180,6 +259,7 @@ function buildStructuredPreviewText() {
     fields.yearsExperience ? `Years of experience: ${fields.yearsExperience}` : "",
     fields.skills.length ? `Skills: ${fields.skills.join(", ")}` : "",
     fields.languages.length ? `Languages: ${fields.languages.join(", ")}` : "",
+    fields.country ? `Country: ${fields.country === "DK" ? "Denmark" : "Germany"}` : "",
     fields.location.length ? `Location: ${fields.location.join(", ")}` : "",
   ].filter(Boolean);
 
@@ -194,6 +274,9 @@ function buildAugmentedAbout(rawAbout, structured) {
   if (clean(structured.yearsExperience)) parts.push(`Years of experience:\n${structured.yearsExperience}`);
   if (structured.skills?.length) parts.push(`Skills:\n${structured.skills.join(", ")}`);
   if (structured.languages?.length) parts.push(`Languages:\n${structured.languages.join(", ")}`);
+  if (structured.country) {
+    parts.push(`Preferred country:\n${structured.country === "DK" ? "Denmark" : "Germany"}`);
+  }
   if (structured.location?.length) parts.push(`Location:\n${structured.location.join(", ")}`);
 
   return parts.join("\n\n").trim();
@@ -391,14 +474,16 @@ async function fetchTopJobs(queryText, locationText = "") {
   const q = clean(queryText);
   const location = clean(locationText);
 
-  if (!q) return {
-    jobs: [],
-    portal: "jobindex",
-    searchUrl: "",
-    normalizedCountry: "",
-    normalizedLocation: "",
-    shortQuery: "",
-  };
+  if (!q) {
+    return {
+      jobs: [],
+      portal: "jobindex",
+      searchUrl: "",
+      normalizedCountry: "",
+      normalizedLocation: "",
+      shortQuery: "",
+    };
+  }
 
   const { data, error } = await supabase.functions.invoke("jobindex-top3", {
     body: { q, location },
@@ -534,6 +619,11 @@ function updatePreview() {
   if (lastSaved) lastSaved.textContent = `Updated ${nowStamp()}`;
 }
 
+jobCountry?.addEventListener("change", () => {
+  populateLocationOptions(clean(jobCountry.value));
+  onEdit();
+});
+
 [role, experience, education, yearsExperience, skills, languages, location, consentEl, cvFile].forEach((el) => {
   if (!el) return;
   el.addEventListener("input", onEdit);
@@ -543,6 +633,7 @@ function updatePreview() {
 resetBtn?.addEventListener("click", () => {
   form?.reset();
   if (cvFile) cvFile.value = "";
+  populateLocationOptions("");
   clearParsedProfile();
   setJobsUI({ state: "idle" });
   if (jobindexAllLink) jobindexAllLink.href = "#";
@@ -596,7 +687,8 @@ form?.addEventListener("submit", async (e) => {
     clean(structured.yearsExperience) ||
     structured.skills.length ||
     structured.languages.length ||
-    structured.location.length;
+    structured.location.length ||
+    structured.country;
 
   if (!hasPrompt && !file) {
     showToast("Please provide a prompt, a CV, or both.");
@@ -640,6 +732,14 @@ form?.addEventListener("submit", async (e) => {
       rawAbout,
       structured,
     });
+
+    if (!structured.country && merged.location.length) {
+      const inferred = inferCountryFromLocations(merged.location);
+      if (inferred && jobCountry) {
+        jobCountry.value = inferred;
+        populateLocationOptions(inferred);
+      }
+    }
 
     renderParsedProfile(merged);
 
@@ -705,7 +805,7 @@ form?.addEventListener("submit", async (e) => {
     if (!jobs.length) {
       setJobsUI({
         state: "empty",
-        message: "No results found. Try refining the prompt or changing the location.",
+        message: "No results found. Try refining the prompt or choosing another supported location in Denmark or Germany.",
       });
       setStatus("Saved · no results");
     } else {
@@ -731,6 +831,7 @@ form?.addEventListener("submit", async (e) => {
   }
 });
 
+populateLocationOptions("");
 updatePreview();
 clearParsedProfile();
 setJobsUI({ state: "idle" });
