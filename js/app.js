@@ -523,9 +523,21 @@ function onEdit() {
   setJobsUI({ state: "idle" });
   if (jobindexAllLink) jobindexAllLink.href = "#";
   setStatus("Draft · editing");
-  setRatingEnabled(false, "Rate after recommendations appear.");
-  latestRecommendationReady = false;
-  latestSubmissionId = "";
+}
+
+async function updateRecommendationRating(submissionId, ratingValue) {
+  const { data, error } = await supabase
+    .from("candidate_profiles")
+    .update({ recommendation_rating: ratingValue })
+    .eq("submission_id", submissionId)
+    .select("submission_id, recommendation_rating");
+
+  if (error) throw error;
+  if (!data || !data.length) {
+    throw new Error("Rating update did not match any saved recommendation row.");
+  }
+
+  return data[0];
 }
 
 async function insertCandidateProfile(payload) {
