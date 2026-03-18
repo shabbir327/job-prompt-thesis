@@ -1008,7 +1008,7 @@ form?.addEventListener("submit", async (e) => {
   }
 });
 
-populateLocationOptions("");
+populateLocationOptions(clean(jobCountry?.value));
 setRatingEnabled(false, "Rate after recommendations appear.");
 updatePreview();
 clearParsedProfile();
