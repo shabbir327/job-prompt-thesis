@@ -293,7 +293,7 @@ function setRatingEnabled(enabled, message = "") {
   }
 }
 
-function populateLocationOptions(countryCode) {
+function populateLocationOptions(countryCode = clean(jobCountry?.value)) {
   if (!location) return;
 
   const locations = SUPPORTED_LOCATIONS[countryCode] || [];
