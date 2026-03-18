@@ -3,7 +3,6 @@ import { anonymizeText, randomId, getOrCreateParticipantId } from "./anonymize.j
 
 const $ = (sel) => document.querySelector(sel);
 
-// ---------------- core UI ----------------
 const form = $("#jobForm");
 const statusPill = $("#statusPill");
 const ariaLive = $("#ariaLive");
@@ -17,13 +16,6 @@ const copyBtn = $("#copyBtn");
 const toast = $("#toast");
 const toastText = $("#toastText");
 
-// ---------------- mode switch ----------------
-const promptModeBtn = $("#promptModeBtn");
-const cvModeBtn = $("#cvModeBtn");
-const promptModePanel = $("#promptModePanel");
-const cvModePanel = $("#cvModePanel");
-
-// ---------------- prompt inputs ----------------
 const role = $("#role");
 const experience = $("#experience");
 const education = $("#education");
@@ -31,24 +23,17 @@ const yearsExperience = $("#yearsExperience");
 const skills = $("#skills");
 const languages = $("#languages");
 const location = $("#location");
-
-// ---------------- CV inputs ----------------
 const cvFile = $("#cvFile");
-
-// ---------------- shared inputs ----------------
 const consentEl = $("#consent");
 
-// ---------------- preview ----------------
 const previewMode = $("#previewMode");
 const previewRole = $("#previewRole");
 const previewExperience = $("#previewExperience");
 const previewStructured = $("#previewStructured");
 
-// ---------------- parsed profile ----------------
 const parsedHint = $("#parsedHint");
 const parsedProfile = $("#parsedProfile");
 
-// ---------------- jobs UI ----------------
 const jobsHint = $("#jobsHint");
 const jobsStatus = $("#jobsStatus");
 const jobsSkeleton = $("#jobsSkeleton");
@@ -57,9 +42,6 @@ const jobindexAllLink = $("#jobindexAllLink");
 
 const participantId = getOrCreateParticipantId();
 
-let currentMode = "prompt";
-
-// ---------------- helpers ----------------
 function clean(v) {
   return String(v ?? "").trim();
 }
@@ -110,16 +92,9 @@ function setAria(text) {
 }
 
 function updateCounter() {
-  if (!charCount) return;
-
-  if (currentMode === "prompt") {
-    const max = Number(experience?.maxLength || 1200);
-    const used = experience?.value?.length || 0;
-    charCount.textContent = `${used} / ${max}`;
-    return;
-  }
-
-  charCount.textContent = cvFile?.files?.[0] ? "PDF selected" : "No PDF selected";
+  const max = Number(experience?.maxLength || 1200);
+  const used = experience?.value?.length || 0;
+  charCount.textContent = `${used} / ${max}`;
 }
 
 function jobIndexUrlForQuery(queryText) {
@@ -137,7 +112,7 @@ function escapeHtml(str) {
 }
 
 function summarizeFilename(file) {
-  if (!file) return "—";
+  if (!file) return "No CV uploaded";
   return `${file.name} (${Math.round(file.size / 1024)} KB)`;
 }
 
@@ -152,10 +127,6 @@ function getStructuredPromptFields() {
 }
 
 function buildStructuredPreviewText() {
-  if (currentMode !== "prompt") {
-    return "PDF CV will be privacy-redacted and parsed automatically.";
-  }
-
   const fields = getStructuredPromptFields();
 
   const lines = [
@@ -183,22 +154,19 @@ function buildAugmentedAbout(rawAbout, structured) {
 }
 
 function currentInputSummary() {
-  if (currentMode === "prompt") {
-    return {
-      modeLabel: "Job Prompt",
-      roleText: clean(role?.value) || "—",
-      contentText: clean(experience?.value) || "—",
-      structuredText: buildStructuredPreviewText(),
-    };
-  }
-
   const file = cvFile?.files?.[0] || null;
+  const hasCv = !!file;
+  const hasPrompt = !!clean(role?.value) || !!clean(experience?.value);
+
+  let modeLabel = "Prompt only";
+  if (hasPrompt && hasCv) modeLabel = "Prompt + CV";
+  else if (!hasPrompt && hasCv) modeLabel = "CV only";
 
   return {
-    modeLabel: "PDF CV Upload",
-    roleText: file ? summarizeFilename(file) : "CV-based recommendation",
-    contentText: file ? `Uploaded PDF CV: ${summarizeFilename(file)}` : "—",
-    structuredText: "PDF CV will be privacy-redacted and parsed automatically.",
+    modeLabel,
+    roleText: clean(role?.value) || (file ? "CV-based recommendation" : "—"),
+    contentText: hasCv ? summarizeFilename(file) : (clean(experience?.value) || "—"),
+    structuredText: buildStructuredPreviewText(),
   };
 }
 
@@ -223,59 +191,20 @@ function formatRoleExperience(roleExperience) {
     .join("\n\n");
 }
 
-function setJobsUI({ state = "idle", message = "", jobs = [] } = {}) {
-  if (jobsHint) jobsHint.style.display = state === "idle" ? "block" : "none";
-
-  if (jobsStatus) {
-    const show = state === "loading" || state === "empty" || state === "error";
-    jobsStatus.style.display = show ? "block" : "none";
-    jobsStatus.textContent = message || "";
+function normalizeDisplayValue(value) {
+  if (Array.isArray(value)) {
+    return value.map((v) => normalizeDisplayValue(v)).filter(Boolean).join(", ");
   }
 
-  if (jobsSkeleton) {
-    jobsSkeleton.style.display = state === "loading" ? "grid" : "none";
-  }
-
-  if (jobsList) {
-    jobsList.style.display = state === "ready" && jobs.length ? "grid" : "none";
-    jobsList.innerHTML = "";
-
-    for (const job of jobs) {
-      const card = document.createElement("div");
-      card.className = "jobCard";
-
-      const title = document.createElement("p");
-      title.className = "jobTitle";
-      title.textContent = job.title || "Job listing";
-
-      const meta = document.createElement("p");
-      meta.className = "jobMeta";
-      meta.textContent = [job.company, job.location].filter(Boolean).join(" · ");
-
-      const snippet = document.createElement("p");
-      snippet.className = "jobSnippet";
-      snippet.textContent = job.snippet || "";
-
-      const btnRow = document.createElement("div");
-      btnRow.className = "jobBtnRow";
-
-      const btn = document.createElement("a");
-      btn.className = "jobBtn";
-      btn.href = job.url || "#";
-      btn.target = "_blank";
-      btn.rel = "noopener noreferrer";
-      btn.textContent = "Open job →";
-
-      btnRow.appendChild(btn);
-
-      card.appendChild(title);
-      if (meta.textContent) card.appendChild(meta);
-      if (job.snippet) card.appendChild(snippet);
-      card.appendChild(btnRow);
-
-      jobsList.appendChild(card);
+  if (value && typeof value === "object") {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
     }
   }
+
+  return clean(value);
 }
 
 function clearParsedProfile() {
@@ -284,25 +213,6 @@ function clearParsedProfile() {
     parsedProfile.style.display = "none";
     parsedProfile.innerHTML = "";
   }
-}
-
-function normalizeDisplayValue(value) {
-  if (Array.isArray(value)) {
-    return value.map((v) => normalizeDisplayValue(v)).filter(Boolean).join(", ");
-  }
-
-  if (value && typeof value === "object") {
-    try {
-      if ("degree" in value || "title" in value || "name" in value) {
-        return [value.degree, value.title, value.name].filter(Boolean).join(" - ");
-      }
-      return JSON.stringify(value);
-    } catch {
-      return String(value);
-    }
-  }
-
-  return clean(value);
 }
 
 function renderParsedProfile(data) {
@@ -349,42 +259,68 @@ function renderParsedProfile(data) {
   parsedProfile.style.display = "grid";
 }
 
+function setJobsUI({ state = "idle", message = "", jobs = [] } = {}) {
+  if (jobsHint) jobsHint.style.display = state === "idle" ? "block" : "none";
+
+  if (jobsStatus) {
+    const show = state === "loading" || state === "empty" || state === "error";
+    jobsStatus.style.display = show ? "block" : "none";
+    jobsStatus.textContent = message || "";
+  }
+
+  if (jobsSkeleton) jobsSkeleton.style.display = state === "loading" ? "grid" : "none";
+
+  if (jobsList) {
+    jobsList.style.display = state === "ready" && jobs.length ? "grid" : "none";
+    jobsList.innerHTML = "";
+
+    for (const job of jobs) {
+      const card = document.createElement("div");
+      card.className = "jobCard";
+
+      const title = document.createElement("p");
+      title.className = "jobTitle";
+      title.textContent = job.title || "Job listing";
+
+      const meta = document.createElement("p");
+      meta.className = "jobMeta";
+      meta.textContent = [job.company, job.location].filter(Boolean).join(" · ");
+
+      const snippet = document.createElement("p");
+      snippet.className = "jobSnippet";
+      snippet.textContent = job.snippet || "";
+
+      const btnRow = document.createElement("div");
+      btnRow.className = "jobBtnRow";
+
+      const btn = document.createElement("a");
+      btn.className = "jobBtn";
+      btn.href = job.url || "#";
+      btn.target = "_blank";
+      btn.rel = "noopener noreferrer";
+      btn.textContent = "Open job →";
+
+      btnRow.appendChild(btn);
+      card.appendChild(title);
+      if (meta.textContent) card.appendChild(meta);
+      if (job.snippet) card.appendChild(snippet);
+      card.appendChild(btnRow);
+
+      jobsList.appendChild(card);
+    }
+  }
+}
+
 function updatePreview() {
   const summary = currentInputSummary();
-
   if (previewMode) previewMode.textContent = summary.modeLabel;
   if (previewRole) previewRole.textContent = summary.roleText;
   if (previewExperience) previewExperience.textContent = summary.contentText;
   if (previewStructured) previewStructured.textContent = summary.structuredText;
-
   updateCounter();
   if (lastSaved) lastSaved.textContent = `Updated ${nowStamp()}`;
 }
 
-function setMode(mode) {
-  currentMode = mode === "cv" ? "cv" : "prompt";
-
-  const promptActive = currentMode === "prompt";
-  const cvActive = currentMode === "cv";
-
-  promptModeBtn?.classList.toggle("active", promptActive);
-  cvModeBtn?.classList.toggle("active", cvActive);
-
-  promptModeBtn?.setAttribute("aria-selected", String(promptActive));
-  cvModeBtn?.setAttribute("aria-selected", String(cvActive));
-
-  promptModePanel?.classList.toggle("hidden", !promptActive);
-  cvModePanel?.classList.toggle("hidden", !cvActive);
-
-  updatePreview();
-  clearParsedProfile();
-  setJobsUI({ state: "idle" });
-
-  if (jobindexAllLink) jobindexAllLink.href = "#";
-  setStatus("Draft · editing");
-}
-
-// ---------------- supabase helpers ----------------
 async function insertCandidateProfile(payload) {
   const { error } = await supabase.from("candidate_profiles").insert([payload]);
   if (error) throw error;
@@ -394,24 +330,17 @@ async function buildMultilingualQuery(roleText, aboutText) {
   const { data, error } = await supabase.functions.invoke("mistral-query-builder", {
     body: { role: roleText, about: aboutText },
   });
-
   if (error) throw new Error(error.message || "mistral-query-builder failed");
   if (data?.error) throw new Error(data.error);
-
   return data;
 }
 
 async function fetchTopJobs(queryText) {
   const q = clean(queryText);
   if (!q) return [];
-
-  const { data, error } = await supabase.functions.invoke("jobindex-top3", {
-    body: { q },
-  });
-
+  const { data, error } = await supabase.functions.invoke("jobindex-top3", { body: { q } });
   if (error) throw new Error(error.message || "jobindex-top3 failed");
   if (data?.error) throw new Error(data.error);
-
   return data?.jobs || [];
 }
 
@@ -427,11 +356,7 @@ async function uploadCvPdf(file) {
   if (uploadError) throw uploadError;
 
   const { data } = supabase.storage.from("cvs").getPublicUrl(path);
-
-  return {
-    path,
-    publicUrl: data.publicUrl,
-  };
+  return { path, publicUrl: data.publicUrl };
 }
 
 async function deleteCvPdf(path) {
@@ -443,117 +368,100 @@ async function parseCvPdf(pdfUrl) {
   const { data, error } = await supabase.functions.invoke("parse-cv-pdf", {
     body: { pdf_url: pdfUrl },
   });
-
   if (error) throw new Error(error.message || "parse-cv-pdf failed");
   if (data?.error) throw new Error(data.error);
-
   return data;
 }
 
-// ---------------- submission helpers ----------------
-function getPromptSubmission() {
-  const rawRole = clean(role?.value);
-  const rawAbout = clean(experience?.value);
-  const structured = getStructuredPromptFields();
-  const augmentedAbout = buildAugmentedAbout(rawAbout, structured);
-
-  if (!rawRole) {
-    role?.focus();
-    throw new Error("Please enter the role you are looking for.");
-  }
-
-  const hasStructuredInfo =
-    clean(structured.education) ||
-    clean(structured.yearsExperience) ||
-    structured.skills.length ||
-    structured.languages.length ||
-    structured.location.length;
-
-  if (!clean(rawAbout) && !hasStructuredInfo) {
-    experience?.focus();
-    throw new Error("Please add some experience details or structured profile information.");
-  }
-
-  if (clean(rawAbout) && rawAbout.length < 20 && !hasStructuredInfo) {
-    experience?.focus();
-    throw new Error("Please write a bit more about your experience and interests.");
-  }
+function mergeProfiles(promptData, cvData, promptInput) {
+  const promptLocations = promptInput.structured.location || [];
+  const cvLocations = asArray(cvData?.location);
+  const mergedLocations = [...new Set([...promptLocations, ...cvLocations])];
 
   return {
-    source_type: "job_prompt",
-    rawRole,
-    rawAbout,
-    structured,
-    augmentedAbout,
+    source_type: cvData ? "prompt_cv_combined" : "job_prompt",
+    language: clean(cvData?.language || promptData?.language) || null,
+    normalized_role: clean(promptData?.normalized_role || cvData?.normalized_role) || null,
+    normalized_roles: [...new Set([
+      ...asArray(promptData?.normalized_roles),
+      ...asArray(cvData?.normalized_roles),
+    ])],
+    role_experience: Array.isArray(cvData?.role_experience)
+      ? cvData.role_experience
+      : Array.isArray(promptData?.role_experience)
+      ? promptData.role_experience
+      : null,
+    danish_keywords: [...new Set([
+      ...asArray(promptData?.danish_keywords),
+      ...asArray(cvData?.danish_keywords),
+    ])],
+    english_keywords: [...new Set([
+      ...asArray(promptData?.english_keywords),
+      ...asArray(cvData?.english_keywords),
+    ])],
+    adjacent_roles: [...new Set([
+      ...asArray(promptData?.adjacent_roles),
+      ...asArray(cvData?.adjacent_roles),
+    ])],
+    skills: [...new Set([
+      ...asArray(promptData?.skills),
+      ...asArray(cvData?.skills),
+    ])],
+    industries: [...new Set([
+      ...asArray(promptData?.industries),
+      ...asArray(cvData?.industries),
+    ])],
+    education: [...new Set([
+      ...asArray(promptData?.education),
+      ...asArray(cvData?.education),
+    ])],
+    languages: [...new Set([
+      ...asArray(promptData?.languages),
+      ...asArray(cvData?.languages),
+    ])],
+    location: mergedLocations,
+    years_experience:
+      asNullableNumber(cvData?.years_experience) ??
+      asNullableNumber(promptData?.years_experience) ??
+      asNullableNumber(promptInput?.structured?.yearsExperience),
+    seniority: clean(cvData?.seniority || promptData?.seniority) || null,
+    summary: clean(cvData?.summary || promptData?.summary) || null,
+    jobindex_query:
+      clean(promptData?.jobindex_query || cvData?.jobindex_query || promptInput?.rawRole) || "job",
   };
 }
 
-function getCvSubmission() {
-  const file = cvFile?.files?.[0] || null;
-
-  if (!file) throw new Error("Please upload a PDF CV.");
-  if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-    throw new Error("Only PDF CV files are supported right now.");
-  }
-
-  return {
-    source_type: "cv_pdf",
-    file,
-  };
-}
-
-// ---------------- mode events ----------------
-promptModeBtn?.addEventListener("click", () => setMode("prompt"));
-cvModeBtn?.addEventListener("click", () => setMode("cv"));
-
-// ---------------- live updates ----------------
 function onEdit() {
   updatePreview();
   clearParsedProfile();
   setJobsUI({ state: "idle" });
-
   if (jobindexAllLink) jobindexAllLink.href = "#";
   setStatus("Draft · editing");
 }
 
-[role, experience, education, yearsExperience, skills, languages, location, consentEl].forEach((el) => {
+[role, experience, education, yearsExperience, skills, languages, location, consentEl, cvFile].forEach((el) => {
   if (!el) return;
   el.addEventListener("input", onEdit);
   el.addEventListener("change", onEdit);
 });
 
-cvFile?.addEventListener("change", () => {
-  updatePreview();
-  clearParsedProfile();
-  setJobsUI({ state: "idle" });
-
-  if (jobindexAllLink) jobindexAllLink.href = "#";
-  setStatus("Draft · editing");
-});
-
-// ---------------- buttons ----------------
 resetBtn?.addEventListener("click", () => {
   form?.reset();
   if (cvFile) cvFile.value = "";
-
   clearParsedProfile();
   setJobsUI({ state: "idle" });
-
   if (jobindexAllLink) jobindexAllLink.href = "#";
   if (lastSaved) lastSaved.textContent = "Live preview";
-
   setStatus("Thesis Prototype v1");
   updatePreview();
-
-  if (currentMode === "prompt") role?.focus();
-  else cvFile?.focus();
+  role?.focus();
 });
 
 copyBtn?.addEventListener("click", async () => {
   const summary = currentInputSummary();
 
   const text = [
-    `Input mode: ${summary.modeLabel}`,
+    `Input type: ${summary.modeLabel}`,
     "",
     `Role / target: ${summary.roleText}`,
     "",
@@ -572,7 +480,6 @@ copyBtn?.addEventListener("click", async () => {
   }
 });
 
-// ---------------- submit flow ----------------
 form?.addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -581,174 +488,122 @@ form?.addEventListener("submit", async (e) => {
     return;
   }
 
+  const rawRole = clean(role?.value);
+  const rawAbout = clean(experience?.value);
+  const structured = getStructuredPromptFields();
+  const augmentedAbout = buildAugmentedAbout(rawAbout, structured);
+  const file = cvFile?.files?.[0] || null;
+
+  const hasPrompt =
+    rawRole ||
+    rawAbout ||
+    clean(structured.education) ||
+    clean(structured.yearsExperience) ||
+    structured.skills.length ||
+    structured.languages.length ||
+    structured.location.length;
+
+  if (!hasPrompt && !file) {
+    showToast("Please provide a prompt, a CV, or both.");
+    return;
+  }
+
   try {
     if (submitBtn) submitBtn.disabled = true;
 
-    // ---------- PROMPT MODE ----------
-    if (currentMode === "prompt") {
-      const submission = getPromptSubmission();
+    setStatus("Parsing with AI…");
+    setAria("Parsing your input.");
+    clearParsedProfile();
+    setJobsUI({
+      state: "loading",
+      message: "Parsing your input and finding matching jobs…",
+    });
 
-      setStatus("Parsing with AI…");
-      setAria("Parsing your input with AI.");
-      clearParsedProfile();
-      setJobsUI({
-        state: "loading",
-        message: "Parsing your input and finding matching jobs…",
-      });
+    let promptParsed = null;
+    let cvParsed = null;
+    let upload = null;
 
-      let llm = null;
+    if (hasPrompt) {
       try {
-        llm = await buildMultilingualQuery(submission.rawRole, submission.augmentedAbout);
-        renderParsedProfile(llm);
-      } catch (llmErr) {
-        console.error("Mistral parsing failed:", llmErr);
-        clearParsedProfile();
+        promptParsed = await buildMultilingualQuery(rawRole, augmentedAbout);
+      } catch (err) {
+        console.error("Prompt parsing failed:", err);
       }
-
-      const finalQuery = clean(llm?.jobindex_query) || submission.rawRole;
-
-      await insertCandidateProfile({
-        participant_id: participantId,
-        submission_id: randomId("s"),
-        source_type: submission.source_type,
-        raw_role: anonymizeText(submission.rawRole),
-        raw_about: anonymizeText(submission.augmentedAbout),
-
-        language: clean(llm?.language) || null,
-        normalized_role: clean(llm?.normalized_role) || null,
-        normalized_roles: asArray(llm?.normalized_roles),
-        role_experience: Array.isArray(llm?.role_experience) ? llm.role_experience : null,
-        danish_keywords: asArray(llm?.danish_keywords),
-        english_keywords: asArray(llm?.english_keywords),
-        adjacent_roles: asArray(llm?.adjacent_roles),
-
-        skills: asArray(llm?.skills),
-        industries: asArray(llm?.industries),
-        education: asArray(llm?.education),
-        languages: asArray(llm?.languages),
-        location: asArray(llm?.location),
-        years_experience: asNullableNumber(llm?.years_experience),
-        seniority: clean(llm?.seniority) || null,
-        summary: clean(llm?.summary) || null,
-        jobindex_query: finalQuery,
-
-        user_education: anonymizeText(submission.structured.education || ""),
-        user_skills: submission.structured.skills.map(anonymizeText),
-        user_languages: submission.structured.languages.map(anonymizeText),
-        user_years_experience: asNullableNumber(submission.structured.yearsExperience),
-
-        consent: true,
-      });
-
-      if (jobindexAllLink) jobindexAllLink.href = jobIndexUrlForQuery(finalQuery);
-
-      setStatus("Finding jobs…");
-      setAria("Finding relevant jobs.");
-
-      const jobs = await fetchTopJobs(finalQuery);
-
-      if (!jobs.length) {
-        setJobsUI({
-          state: "empty",
-          message: "No results found. Try a different role description.",
-        });
-        setStatus("Saved · no results");
-      } else {
-        setJobsUI({ state: "ready", jobs });
-        setStatus("Saved · recommendation ready");
-      }
-
-      setAria("Recommendation complete.");
-      if (lastSaved) lastSaved.textContent = `Saved ${nowStamp()}`;
-      showToast("Recommendation ready.");
-      return;
     }
 
-    // ---------- CV MODE ----------
-    const submission = getCvSubmission();
+    if (file) {
+      upload = await uploadCvPdf(file);
+      try {
+        cvParsed = await parseCvPdf(upload.publicUrl);
+      } finally {
+        await deleteCvPdf(upload.path);
+      }
+    }
 
-    setStatus("Uploading CV…");
-    setAria("Uploading your CV.");
+    const merged = mergeProfiles(promptParsed, cvParsed, {
+      rawRole,
+      rawAbout,
+      structured,
+    });
 
-    const upload = await uploadCvPdf(submission.file);
+    renderParsedProfile(merged);
 
-    try {
-      setStatus("Parsing CV with AI…");
-      setAria("Parsing your CV with AI.");
-      clearParsedProfile();
+    await insertCandidateProfile({
+      participant_id: participantId,
+      submission_id: randomId("s"),
+      source_type: merged.source_type,
+      raw_role: rawRole ? anonymizeText(rawRole) : null,
+      raw_about: rawAbout ? anonymizeText(augmentedAbout) : null,
+
+      language: merged.language,
+      normalized_role: merged.normalized_role,
+      normalized_roles: merged.normalized_roles,
+      role_experience: merged.role_experience,
+      danish_keywords: merged.danish_keywords,
+      english_keywords: merged.english_keywords,
+      adjacent_roles: merged.adjacent_roles,
+      skills: merged.skills,
+      industries: merged.industries,
+      education: merged.education,
+      languages: merged.languages,
+      location: merged.location,
+      years_experience: merged.years_experience,
+      seniority: merged.seniority,
+      summary: merged.summary,
+      jobindex_query: merged.jobindex_query,
+
+      user_education: structured.education ? anonymizeText(structured.education) : null,
+      user_skills: structured.skills.map(anonymizeText),
+      user_languages: structured.languages.map(anonymizeText),
+      user_years_experience: asNullableNumber(structured.yearsExperience),
+
+      consent: true,
+      ocr_text_preview: clean(cvParsed?.ocr_text_preview) || null,
+      ocr_text_length: asNullableNumber(cvParsed?.ocr_text_length),
+      pages_processed: asNullableNumber(cvParsed?.pages_processed),
+    });
+
+    if (jobindexAllLink) jobindexAllLink.href = jobIndexUrlForQuery(merged.jobindex_query);
+
+    setStatus("Finding jobs…");
+    setAria("Finding relevant jobs.");
+
+    const jobs = await fetchTopJobs(merged.jobindex_query);
+
+    if (!jobs.length) {
       setJobsUI({
-        state: "loading",
-        message: "Reading your PDF CV and finding matching jobs…",
+        state: "empty",
+        message: "No results found. Try refining the prompt or uploading a clearer CV.",
       });
-
-      const parsedCv = await parseCvPdf(upload.publicUrl);
-      renderParsedProfile(parsedCv);
-
-      const finalQuery =
-        clean(parsedCv?.jobindex_query) ||
-        clean(parsedCv?.normalized_role) ||
-        "job";
-
-      await insertCandidateProfile({
-        participant_id: participantId,
-        submission_id: randomId("s"),
-        source_type: submission.source_type,
-        raw_role: null,
-        raw_about: null,
-
-        language: clean(parsedCv?.language) || null,
-        normalized_role: clean(parsedCv?.normalized_role) || null,
-        normalized_roles: asArray(parsedCv?.normalized_roles),
-        role_experience: Array.isArray(parsedCv?.role_experience) ? parsedCv.role_experience : null,
-        danish_keywords: asArray(parsedCv?.danish_keywords),
-        english_keywords: asArray(parsedCv?.english_keywords),
-        adjacent_roles: asArray(parsedCv?.adjacent_roles),
-
-        skills: asArray(parsedCv?.skills),
-        industries: asArray(parsedCv?.industries),
-        education: asArray(parsedCv?.education),
-        languages: asArray(parsedCv?.languages),
-        location: asArray(parsedCv?.location),
-        years_experience: asNullableNumber(parsedCv?.years_experience),
-        seniority: clean(parsedCv?.seniority) || null,
-        summary: clean(parsedCv?.summary) || null,
-        jobindex_query: finalQuery,
-
-        user_education: null,
-        user_skills: [],
-        user_languages: [],
-        user_years_experience: null,
-
-        consent: true,
-        ocr_text_preview: clean(parsedCv?.ocr_text_preview) || null,
-        ocr_text_length: asNullableNumber(parsedCv?.ocr_text_length),
-        pages_processed: asNullableNumber(parsedCv?.pages_processed),
-      });
-
-      if (jobindexAllLink) jobindexAllLink.href = jobIndexUrlForQuery(finalQuery);
-
-      setStatus("Finding jobs…");
-      setAria("Finding relevant jobs.");
-
-      const jobs = await fetchTopJobs(finalQuery);
-
-      if (!jobs.length) {
-        setJobsUI({
-          state: "empty",
-          message: "No results found. Try another CV or refine the parsing pipeline.",
-        });
-        setStatus("Saved · no results");
-      } else {
-        setJobsUI({ state: "ready", jobs });
-        setStatus("Saved · recommendation ready");
-      }
-
-      setAria("Recommendation complete.");
-      if (lastSaved) lastSaved.textContent = `Saved ${nowStamp()}`;
-      showToast("CV recommendation ready.");
-    } finally {
-      await deleteCvPdf(upload.path);
+      setStatus("Saved · no results");
+    } else {
+      setJobsUI({ state: "ready", jobs });
+      setStatus("Saved · recommendation ready");
     }
+
+    setAria("Recommendation complete.");
+    if (lastSaved) lastSaved.textContent = `Saved ${nowStamp()}`;
+    showToast("Recommendation ready.");
   } catch (err) {
     console.error(err);
     setStatus("Error");
@@ -764,9 +619,7 @@ form?.addEventListener("submit", async (e) => {
   }
 });
 
-// ---------------- initial paint ----------------
 updatePreview();
 clearParsedProfile();
 setJobsUI({ state: "idle" });
 setStatus("Thesis Prototype v1");
-setMode("prompt");
