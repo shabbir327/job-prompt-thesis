@@ -888,6 +888,26 @@ form?.addEventListener("submit", async (e) => {
     const searchResult = await fetchTopJobs(portalQuery, primaryLocation, finalCountry);
     const jobs = searchResult.jobs;
     const recCols = buildRecommendationColumns(jobs);
+    
+    const usedLocationFallback =
+      clean(searchResult.normalizedLocation) &&
+      Array.isArray(jobs) &&
+      jobs.length > 0 &&
+      clean(searchResult.searchUrl) &&
+      !clean(searchResult.searchUrl).includes(clean(searchResult.normalizedLocation));
+    
+    let jobsMessage = "";
+    
+    if (!jobs.length) {
+      jobsMessage =
+        "No results found. Try refining the role or choosing another supported location in Denmark or Germany.";
+    } else if (primaryLocation && usedLocationFallback) {
+      jobsMessage =
+        `No jobs were found in ${primaryLocation}. Showing related jobs from a broader search instead.`;
+    }
+    
+    const jobs = searchResult.jobs;
+    const recCols = buildRecommendationColumns(jobs);
     const submissionId = randomId("s");
 
     await insertCandidateProfile({
@@ -947,11 +967,22 @@ form?.addEventListener("submit", async (e) => {
     if (!jobs.length) {
       setJobsUI({
         state: "empty",
-        message: "No results found. Try refining the role or choosing another supported location in Denmark or Germany.",
+        message: jobsMessage,
       });
       setStatus("Saved · no results");
     } else {
-      setJobsUI({ state: "ready", jobs });
+      setJobsUI({
+        state: "ready",
+        jobs,
+      });
+    
+      if (jobsMessage) {
+        if (jobsStatus) {
+          jobsStatus.style.display = "block";
+          jobsStatus.textContent = jobsMessage;
+        }
+      }
+    
       setStatus("Saved · recommendation ready");
     }
 
