@@ -97,9 +97,41 @@ function updateCounter() {
   charCount.textContent = `${used} / ${max}`;
 }
 
-function jobIndexUrlForQuery(queryText) {
-  const q = encodeURIComponent(clean(queryText)).replace(/%20/g, "+");
-  return `https://www.jobindex.dk/jobsoegning?q=${q}`;
+function normalizeTextKey(text) {
+  return clean(text)
+    .toLowerCase()
+    .replace(/æ/g, "ae")
+    .replace(/ø/g, "oe")
+    .replace(/å/g, "aa")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function slugifyJobindexPart(text) {
+  return normalizeTextKey(text)
+    .replace(/_/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function jobIndexUrlForQuery(queryText, locationText = "") {
+  const qSlug = slugifyJobindexPart(queryText);
+  const locationSlug = slugifyJobindexPart(locationText);
+
+  if (qSlug && locationSlug) {
+    return `https://www.jobindex.dk/jobsoegning/${qSlug}/${locationSlug}`;
+  }
+
+  if (clean(queryText)) {
+    const q = encodeURIComponent(clean(queryText)).replace(/%20/g, "+");
+    return `https://www.jobindex.dk/jobsoegning?q=${q}`;
+  }
+
+  return "https://www.jobindex.dk/jobsoegning";
 }
 
 function escapeHtml(str) {
@@ -175,7 +207,7 @@ function formatRoleExperience(roleExperience) {
 
   return roleExperience
     .map((item) => {
-      const role = clean(item?.role);
+      const roleText = clean(item?.role);
       const years = item?.years;
       const evidence = clean(item?.evidence);
 
@@ -184,7 +216,7 @@ function formatRoleExperience(roleExperience) {
           ? ""
           : `${years} year${Number(years) === 1 ? "" : "s"}`;
 
-      const left = [role, yearsText].filter(Boolean).join(" — ");
+      const left = [roleText, yearsText].filter(Boolean).join(" — ");
       return evidence ? `${left}\nEvidence: ${evidence}` : left;
     })
     .filter(Boolean)
@@ -282,14 +314,6 @@ function setJobsUI({ state = "idle", message = "", jobs = [] } = {}) {
       title.className = "jobTitle";
       title.textContent = job.title || "Job listing";
 
-      const meta = document.createElement("p");
-      meta.className = "jobMeta";
-      meta.textContent = [job.company, job.location].filter(Boolean).join(" · ");
-
-      const snippet = document.createElement("p");
-      snippet.className = "jobSnippet";
-      snippet.textContent = job.snippet || "";
-
       const btnRow = document.createElement("div");
       btnRow.className = "jobBtnRow";
 
@@ -302,8 +326,6 @@ function setJobsUI({ state = "idle", message = "", jobs = [] } = {}) {
 
       btnRow.appendChild(btn);
       card.appendChild(title);
-      if (meta.textContent) card.appendChild(meta);
-      if (job.snippet) card.appendChild(snippet);
       card.appendChild(btnRow);
 
       jobsList.appendChild(card);
@@ -319,21 +341,10 @@ function buildRecommendationColumns(jobs) {
 
   return {
     rec_job_1_title: clean(job1.title) || null,
-    rec_job_1_company: clean(job1.company) || null,
-    rec_job_1_location: clean(job1.location) || null,
-    rec_job_1_snippet: clean(job1.snippet) || null,
     rec_job_1_url: clean(job1.url) || null,
-
     rec_job_2_title: clean(job2.title) || null,
-    rec_job_2_company: clean(job2.company) || null,
-    rec_job_2_location: clean(job2.location) || null,
-    rec_job_2_snippet: clean(job2.snippet) || null,
     rec_job_2_url: clean(job2.url) || null,
-
     rec_job_3_title: clean(job3.title) || null,
-    rec_job_3_company: clean(job3.company) || null,
-    rec_job_3_location: clean(job3.location) || null,
-    rec_job_3_snippet: clean(job3.snippet) || null,
     rec_job_3_url: clean(job3.url) || null,
   };
 }
@@ -355,17 +366,26 @@ async function buildMultilingualQuery(roleText, aboutText) {
   const { data, error } = await supabase.functions.invoke("mistral-query-builder", {
     body: { role: roleText, about: aboutText },
   });
+
   if (error) throw new Error(error.message || "mistral-query-builder failed");
   if (data?.error) throw new Error(data.error);
+
   return data;
 }
 
-async function fetchTopJobs(queryText) {
+async function fetchTopJobs(queryText, locationText = "") {
   const q = clean(queryText);
+  const location = clean(locationText);
+
   if (!q) return [];
-  const { data, error } = await supabase.functions.invoke("jobindex-top3", { body: { q } });
+
+  const { data, error } = await supabase.functions.invoke("jobindex-top3", {
+    body: { q, location },
+  });
+
   if (error) throw new Error(error.message || "jobindex-top3 failed");
   if (data?.error) throw new Error(data.error);
+
   return data?.jobs || [];
 }
 
@@ -393,8 +413,10 @@ async function parseCvPdf(pdfUrl) {
   const { data, error } = await supabase.functions.invoke("parse-cv-pdf", {
     body: { pdf_url: pdfUrl },
   });
+
   if (error) throw new Error(error.message || "parse-cv-pdf failed");
   if (data?.error) throw new Error(data.error);
+
   return data;
 }
 
@@ -407,43 +429,59 @@ function mergeProfiles(promptData, cvData, promptInput) {
     source_type: cvData ? "prompt_cv_combined" : "job_prompt",
     language: clean(cvData?.language || promptData?.language) || null,
     normalized_role: clean(promptData?.normalized_role || cvData?.normalized_role) || null,
-    normalized_roles: [...new Set([
-      ...asArray(promptData?.normalized_roles),
-      ...asArray(cvData?.normalized_roles),
-    ])],
+    normalized_roles: [
+      ...new Set([
+        ...asArray(promptData?.normalized_roles),
+        ...asArray(cvData?.normalized_roles),
+      ]),
+    ],
     role_experience: Array.isArray(cvData?.role_experience)
       ? cvData.role_experience
       : Array.isArray(promptData?.role_experience)
       ? promptData.role_experience
       : null,
-    danish_keywords: [...new Set([
-      ...asArray(promptData?.danish_keywords),
-      ...asArray(cvData?.danish_keywords),
-    ])],
-    english_keywords: [...new Set([
-      ...asArray(promptData?.english_keywords),
-      ...asArray(cvData?.english_keywords),
-    ])],
-    adjacent_roles: [...new Set([
-      ...asArray(promptData?.adjacent_roles),
-      ...asArray(cvData?.adjacent_roles),
-    ])],
-    skills: [...new Set([
-      ...asArray(promptData?.skills),
-      ...asArray(cvData?.skills),
-    ])],
-    industries: [...new Set([
-      ...asArray(promptData?.industries),
-      ...asArray(cvData?.industries),
-    ])],
-    education: [...new Set([
-      ...asArray(promptData?.education),
-      ...asArray(cvData?.education),
-    ])],
-    languages: [...new Set([
-      ...asArray(promptData?.languages),
-      ...asArray(cvData?.languages),
-    ])],
+    danish_keywords: [
+      ...new Set([
+        ...asArray(promptData?.danish_keywords),
+        ...asArray(cvData?.danish_keywords),
+      ]),
+    ],
+    english_keywords: [
+      ...new Set([
+        ...asArray(promptData?.english_keywords),
+        ...asArray(cvData?.english_keywords),
+      ]),
+    ],
+    adjacent_roles: [
+      ...new Set([
+        ...asArray(promptData?.adjacent_roles),
+        ...asArray(cvData?.adjacent_roles),
+      ]),
+    ],
+    skills: [
+      ...new Set([
+        ...asArray(promptData?.skills),
+        ...asArray(cvData?.skills),
+      ]),
+    ],
+    industries: [
+      ...new Set([
+        ...asArray(promptData?.industries),
+        ...asArray(cvData?.industries),
+      ]),
+    ],
+    education: [
+      ...new Set([
+        ...asArray(promptData?.education),
+        ...asArray(cvData?.education),
+      ]),
+    ],
+    languages: [
+      ...new Set([
+        ...asArray(promptData?.languages),
+        ...asArray(cvData?.languages),
+      ]),
+    ],
     location: mergedLocations,
     years_experience:
       asNullableNumber(cvData?.years_experience) ??
@@ -454,6 +492,18 @@ function mergeProfiles(promptData, cvData, promptInput) {
     jobindex_query:
       clean(promptData?.jobindex_query || cvData?.jobindex_query || promptInput?.rawRole) || "job",
   };
+}
+
+function updatePreview() {
+  const summary = currentInputSummary();
+
+  if (previewMode) previewMode.textContent = summary.modeLabel;
+  if (previewRole) previewRole.textContent = summary.roleText;
+  if (previewExperience) previewExperience.textContent = summary.contentText;
+  if (previewStructured) previewStructured.textContent = summary.structuredText;
+
+  updateCounter();
+  if (lastSaved) lastSaved.textContent = `Updated ${nowStamp()}`;
 }
 
 [role, experience, education, yearsExperience, skills, languages, location, consentEl, cvFile].forEach((el) => {
@@ -568,7 +618,12 @@ form?.addEventListener("submit", async (e) => {
     setStatus("Finding jobs…");
     setAria("Finding relevant jobs.");
 
-    const jobs = await fetchTopJobs(merged.jobindex_query);
+    const primaryLocation =
+      Array.isArray(merged.location) && merged.location.length
+        ? merged.location[0]
+        : "";
+
+    const jobs = await fetchTopJobs(merged.jobindex_query, primaryLocation);
     const recCols = buildRecommendationColumns(jobs);
 
     await insertCandidateProfile({
@@ -608,12 +663,14 @@ form?.addEventListener("submit", async (e) => {
       ...recCols,
     });
 
-    if (jobindexAllLink) jobindexAllLink.href = jobIndexUrlForQuery(merged.jobindex_query);
+    if (jobindexAllLink) {
+      jobindexAllLink.href = jobIndexUrlForQuery(merged.jobindex_query, primaryLocation);
+    }
 
     if (!jobs.length) {
       setJobsUI({
         state: "empty",
-        message: "No results found. Try refining the prompt or uploading a clearer CV.",
+        message: "No results found. Try refining the prompt or changing the location.",
       });
       setStatus("Saved · no results");
     } else {
