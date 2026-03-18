@@ -39,6 +39,11 @@
           </p>
         </div>
 
+        <p class="subtitle subtitleWide">
+          <strong>Current coverage:</strong> job search recommendations currently support
+          <strong>Denmark</strong> and <strong>Germany</strong> only.
+        </p>
+
         <form id="jobForm" autocomplete="on">
           <div class="field">
             <label for="role">1) What job are you looking for?</label>
@@ -111,20 +116,32 @@
             <p class="fieldNote">Separate languages with commas.</p>
           </div>
 
-          <div class="field">
-            <label for="location">7) Preferred job locations</label>
-            <input
-              id="location"
-              name="location"
-              type="text"
-              placeholder="e.g., Copenhagen, Aarhus, Odense"
-              maxlength="200"
-            />
-            <p class="fieldNote">Separate locations with commas.</p>
-          </div>
+         <div class="grid2">
+        <div class="field">
+          <label for="jobCountry">7) Job country</label>
+          <select id="jobCountry" name="jobCountry">
+            <option value="">Select country</option>
+            <option value="DK">Denmark</option>
+            <option value="DE">Germany</option>
+          </select>
+          <p class="fieldNote">
+            The system currently supports job search in <strong>Denmark and Germany only</strong>.
+          </p>
+        </div>
+      
+        <div class="field">
+          <label for="location">8) Preferred job location</label>
+          <select id="location" name="location">
+            <option value="">Select location</option>
+          </select>
+          <p class="fieldNote">
+            Only supported cities/regions are shown for the selected country.
+          </p>
+        </div>
+      </div>
 
           <div class="field">
-            <label for="cvFile">8) Upload your CV (optional)</label>
+            <label for="cvFile">9) Upload your CV (optional)</label>
             <input
               id="cvFile"
               name="cvFile"
