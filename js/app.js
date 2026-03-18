@@ -97,6 +97,20 @@ function updateCounter() {
   charCount.textContent = `${used} / ${max}`;
 }
 
+function buildSearchQueryForJobindex(merged) {
+  const normalizedRole = clean(merged?.normalized_role);
+  const rawQuery = clean(merged?.jobindex_query);
+
+  if (normalizedRole) return normalizedRole;
+
+  if (!rawQuery) return "";
+
+  return rawQuery
+    .split(/\s+/)
+    .slice(0, 3)
+    .join(" ");
+}
+
 function normalizeTextKey(text) {
   return clean(text)
     .toLowerCase()
@@ -623,7 +637,12 @@ form?.addEventListener("submit", async (e) => {
         ? merged.location[0]
         : "";
 
-    const jobs = await fetchTopJobs(merged.jobindex_query, primaryLocation);
+    const searchQuery = buildSearchQueryForJobindex(merged);
+    let jobs = await fetchTopJobs(searchQuery, primaryLocation);
+
+    if (!jobs.length && primaryLocation) {
+      jobs = await fetchTopJobs(searchQuery, "");
+    }
     const recCols = buildRecommendationColumns(jobs);
 
     await insertCandidateProfile({
@@ -648,7 +667,7 @@ form?.addEventListener("submit", async (e) => {
       years_experience: merged.years_experience,
       seniority: merged.seniority,
       summary: merged.summary,
-      jobindex_query: merged.jobindex_query,
+      jobindex_query: searchQuery,
 
       user_education: structured.education ? anonymizeText(structured.education) : null,
       user_skills: structured.skills.map(anonymizeText),
