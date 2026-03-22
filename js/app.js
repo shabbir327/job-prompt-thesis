@@ -526,8 +526,18 @@ function onEdit() {
 }
 
 async function insertCandidateProfile(payload) {
-  const { error } = await supabase.from("candidate_profiles").insert([payload]);
+  const { data, error } = await supabase
+    .from("candidate_profiles")
+    .insert([payload])
+    .select("submission_id");
+
   if (error) throw error;
+
+  if (!data || data.length === 0) {
+    throw new Error("Insert succeeded but no row returned");
+  }
+
+  return data[0];
 }
 
 async function updateRecommendationRating(submissionId, ratingValue) {
@@ -921,7 +931,7 @@ form?.addEventListener("submit", async (e) => {
 
     const submissionId = randomId("s");
 
-    await insertCandidateProfile({
+    const inserted = await insertCandidateProfile({
       participant_id: participantId,
       submission_id: submissionId,
       source_type: merged.source_type,
@@ -961,7 +971,7 @@ form?.addEventListener("submit", async (e) => {
       ...recCols,
     });
 
-    latestSubmissionId = submissionId;
+    latestSubmissionId = inserted.submissionId;
     latestRecommendationReady = true;
     setRatingEnabled(true, "Please rate the recommendations.");
 
