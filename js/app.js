@@ -535,16 +535,18 @@ async function updateRecommendationRating(submissionId, ratingValue) {
     .from("candidate_profiles")
     .update({ recommendation_rating: ratingValue })
     .eq("submission_id", submissionId)
-    .select("submission_id, recommendation_rating");
+    .select("*");
 
   if (error) throw error;
-  if (!data || !data.length) {
-    throw new Error("Rating update did not match any saved recommendation row.");
+
+  console.log("Rating update result:", data);
+
+  if (!data || data.length === 0) {
+    throw new Error("No row matched submission_id");
   }
 
   return data[0];
 }
-
 
 async function buildMultilingualQuery(roleText, aboutText) {
   const { data, error } = await supabase.functions.invoke("mistral-query-builder", {
