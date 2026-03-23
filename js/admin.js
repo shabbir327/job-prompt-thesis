@@ -1,7 +1,7 @@
 import { supabase } from "./supabaseClient.js";
 
-
 const BASE_PATH = "/job-prompt-thesis";
+const SUPABASE_FUNCTIONS_BASE = "https://vjwcpzprgqzbjmwjrfrc.supabase.co/functions/v1";
 
 async function protectAdminPage() {
   const { data, error } = await supabase.auth.getSession();
@@ -76,10 +76,15 @@ function parseRoleExperienceText(value) {
 function sanitizeFilename(name) {
   return String(name || "")
     .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")   // remove accents/diacritics
-    .replace(/[^a-zA-Z0-9._-]/g, "_")  // replace unsafe chars
-    .replace(/_+/g, "_")               // collapse repeated underscores
-    .replace(/^_+|_+$/g, "");          // trim underscores
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function normalizeParsedArray(arr) {
+  if (!Array.isArray(arr)) return [];
+  return [...new Set(arr.map((x) => String(x || "").trim().toLowerCase()).filter(Boolean))];
 }
 
 function validateCvPayload(payload) {
@@ -258,6 +263,123 @@ function wireJobForm() {
   });
 }
 
+async function getSessionToken() {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session?.access_token) {
+    throw new Error("No active session token found.");
+  }
+
+  return session.access_token;
+}
+
+async function uploadTempPdfAndGetSignedUrl(file, folder) {
+  const safeFileName = sanitizeFilename(file.name);
+  const filePath = `${folder}/${Date.now()}-${safeFileName}`;
+
+  console.log("Uploading temporary file to:", filePath);
+
+  const { error: uploadError } = await supabase.storage
+    .from("admin-documents")
+    .upload(filePath, file, { upsert: false });
+
+  if (uploadError) throw uploadError;
+
+  const { data: signedData, error: signedError } = await supabase.storage
+    .from("admin-documents")
+    .createSignedUrl(filePath, 60);
+
+  if (signedError) {
+    await supabase.storage.from("admin-documents").remove([filePath]);
+    throw signedError;
+  }
+
+  return {
+    filePath,
+    signedUrl: signedData?.signedUrl,
+  };
+}
+
+async function deleteTempFile(filePath) {
+  if (!filePath) return;
+  const { error } = await supabase.storage.from("admin-documents").remove([filePath]);
+  if (error) {
+    console.warn("Temporary file cleanup failed:", error);
+  } else {
+    console.log("Temporary file deleted:", filePath);
+  }
+}
+
+function buildJobParsePayload(file, modelName, promptVersion, parseData) {
+  const parsed = parseData?.parsed_output || {};
+
+  return {
+    parse_id: makeId("llmjob"),
+    source_file_name: file.name,
+    source_pdf_url: null,
+    model_name: modelName,
+    prompt_version: promptVersion,
+    raw_extracted_text: parseData?.raw_extracted_text || null,
+    parsed_output: parsed,
+
+    primary_role: normalizeSingle(parsed.primary_role),
+    normalized_roles: normalizeParsedArray(parsed.normalized_roles),
+    skills: normalizeParsedArray(parsed.skills),
+    languages: normalizeParsedArray(parsed.languages),
+    education: normalizeParsedArray(parsed.education),
+    industries: normalizeParsedArray(parsed.industries),
+    locations: normalizeParsedArray(parsed.locations),
+    years_experience_required: safeNumber(parsed.years_experience_required),
+    seniority: normalizeSingle(parsed.seniority),
+    employment_type: normalizeSingle(parsed.employment_type),
+
+    parse_status: "completed",
+    notes: null
+  };
+}
+
+function buildCvParsePayload(file, modelName, promptVersion, candidateRef, testMode, parseData) {
+  const parsed = parseData?.parse_payload || parseData || {};
+
+  return {
+    parse_id: makeId("llmcv"),
+    candidate_ref: candidateRef || null,
+    source_file_name: file.name,
+    source_pdf_url: null,
+    model_name: modelName,
+    prompt_version: promptVersion,
+    parse_status: "completed",
+    test_mode: testMode,
+
+    parsed_output: parsed,
+
+    language: normalizeSingle(parsed.language),
+    normalized_role: normalizeSingle(parsed.normalized_role),
+    normalized_roles: normalizeParsedArray(parsed.normalized_roles),
+    role_experience: Array.isArray(parsed.role_experience) ? parsed.role_experience : [],
+    danish_keywords: normalizeParsedArray(parsed.danish_keywords),
+    english_keywords: normalizeParsedArray(parsed.english_keywords),
+    adjacent_roles: normalizeParsedArray(parsed.adjacent_roles),
+    skills: normalizeParsedArray(parsed.skills),
+    industries: normalizeParsedArray(parsed.industries),
+    education: normalizeParsedArray(parsed.education),
+    languages: normalizeParsedArray(parsed.languages),
+    locations: normalizeParsedArray(parsed.location || parsed.locations),
+    years_experience: safeNumber(parsed.years_experience),
+    seniority: normalizeSingle(parsed.seniority),
+    summary: parsed.summary ? String(parsed.summary).trim() : null,
+    jobindex_query: parsed.jobindex_query ? String(parsed.jobindex_query).trim() : null,
+
+    redacted_text_preview: parseData?.ocr_text_preview || null,
+    redacted_text_length: safeNumber(parseData?.ocr_text_length),
+    pages_processed: safeNumber(parseData?.pages_processed),
+
+    notes: null
+  };
+}
+
 function wireParserForm() {
   const parseBtn = document.getElementById("parseJobPdfBtn");
   const statusEl = document.getElementById("parserStatus");
@@ -270,6 +392,8 @@ function wireParserForm() {
     statusEl.textContent = "Parsing...";
     previewEl.textContent = "";
 
+    let tempFilePath = null;
+
     try {
       const file = fileInput.files?.[0];
       if (!file) throw new Error("Please select a PDF.");
@@ -279,43 +403,19 @@ function wireParserForm() {
       const promptVersion =
         document.getElementById("parser_prompt_version").value.trim() || "v1";
 
-      const safeFileName = sanitizeFilename(file.name);
-      const filePath = `job-pdfs/${Date.now()}-${safeFileName}`;
+      const token = await getSessionToken();
 
-      console.log("Uploading file to:", filePath);
+      const uploadData = await uploadTempPdfAndGetSignedUrl(file, "job-pdfs");
+      tempFilePath = uploadData.filePath;
 
-      const { error: uploadError } = await supabase.storage
-        .from("admin-documents")
-        .upload(filePath, file, { upsert: false });
-
-      if (uploadError) throw uploadError;
-
-      const { data: publicUrlData } = supabase.storage
-        .from("admin-documents")
-        .getPublicUrl(filePath);
-
-      const source_pdf_url = publicUrlData.publicUrl;
-      console.log("Public PDF URL:", source_pdf_url);
-
-      const {
-        data: { session }
-      } = await supabase.auth.getSession();
-
-      if (!session?.access_token) {
-        throw new Error("No active session token found.");
-      }
-
-      const functionUrl =
-        "https://vjwcpzprgqzbjmwjrfrc.supabase.co/functions/v1/parse-job-pdf";
-
-      const response = await fetch(functionUrl, {
+      const response = await fetch(`${SUPABASE_FUNCTIONS_BASE}/parse-job-pdf`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${session.access_token}`
+          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
-          pdf_url: source_pdf_url,
+          pdf_url: uploadData.signedUrl,
           model_name: modelName,
           prompt_version: promptVersion
         })
@@ -331,41 +431,7 @@ function wireParserForm() {
       const parsed = parseData?.parsed_output || {};
       previewEl.textContent = JSON.stringify(parsed, null, 2);
 
-      const payload = {
-        parse_id: makeId("llmjob"),
-        source_file_name: file.name,
-        source_pdf_url,
-        model_name: modelName,
-        prompt_version: promptVersion,
-        raw_extracted_text: parseData?.raw_extracted_text || null,
-        parsed_output: parsed,
-
-        primary_role: normalizeSingle(parsed.primary_role),
-        normalized_roles: Array.isArray(parsed.normalized_roles)
-          ? parsed.normalized_roles.map((x) => String(x).trim().toLowerCase()).filter(Boolean)
-          : [],
-        skills: Array.isArray(parsed.skills)
-          ? parsed.skills.map((x) => String(x).trim().toLowerCase()).filter(Boolean)
-          : [],
-        languages: Array.isArray(parsed.languages)
-          ? parsed.languages.map((x) => String(x).trim().toLowerCase()).filter(Boolean)
-          : [],
-        education: Array.isArray(parsed.education)
-          ? parsed.education.map((x) => String(x).trim().toLowerCase()).filter(Boolean)
-          : [],
-        industries: Array.isArray(parsed.industries)
-          ? parsed.industries.map((x) => String(x).trim().toLowerCase()).filter(Boolean)
-          : [],
-        locations: Array.isArray(parsed.locations)
-          ? parsed.locations.map((x) => String(x).trim().toLowerCase()).filter(Boolean)
-          : [],
-        years_experience_required: safeNumber(parsed.years_experience_required),
-        seniority: normalizeSingle(parsed.seniority),
-        employment_type: normalizeSingle(parsed.employment_type),
-
-        parse_status: "completed",
-        notes: null
-      };
+      const payload = buildJobParsePayload(file, modelName, promptVersion, parseData);
 
       const { data, error: saveError } = await supabase
         .from("llm_job_parses")
@@ -380,6 +446,92 @@ function wireParserForm() {
     } catch (err) {
       console.error("Parser error:", err);
       statusEl.textContent = `Error: ${err.message}`;
+    } finally {
+      await deleteTempFile(tempFilePath);
+    }
+  });
+}
+
+function wireCvParserForm() {
+  const parseBtn = document.getElementById("parseCvPdfBtn");
+  const statusEl = document.getElementById("cvParserStatus");
+  const previewEl = document.getElementById("cvParserPreview");
+  const fileInput = document.getElementById("cvPdfFile");
+
+  if (!parseBtn || !statusEl || !previewEl || !fileInput) return;
+
+  parseBtn.addEventListener("click", async () => {
+    statusEl.textContent = "Parsing CV in GDPR-safe mode...";
+    previewEl.textContent = "";
+
+    let tempFilePath = null;
+
+    try {
+      const file = fileInput.files?.[0];
+      if (!file) throw new Error("Please select a CV PDF.");
+
+      const modelName =
+        document.getElementById("cv_parser_model_name").value.trim() || "mistral-small-latest";
+      const promptVersion =
+        document.getElementById("cv_parser_prompt_version").value.trim() || "cv_admin_v1";
+      const candidateRef =
+        document.getElementById("cv_parser_candidate_ref").value.trim() || null;
+      const testMode =
+        document.getElementById("cv_parser_test_mode").value === "true";
+
+      const token = await getSessionToken();
+
+      const uploadData = await uploadTempPdfAndGetSignedUrl(file, "cv-pdfs-temp");
+      tempFilePath = uploadData.filePath;
+
+      const response = await fetch(`${SUPABASE_FUNCTIONS_BASE}/parse-cv-pdf-admin`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          pdf_url: uploadData.signedUrl,
+          model_name: modelName,
+          prompt_version: promptVersion,
+          test_mode: testMode
+        })
+      });
+
+      const parseData = await response.json();
+      console.log("parse-cv-pdf-admin response:", response.status, parseData);
+
+      if (!response.ok) {
+        throw new Error(parseData?.error || `Function returned ${response.status}`);
+      }
+
+      previewEl.textContent = JSON.stringify(parseData?.parse_payload || parseData, null, 2);
+
+      const payload = buildCvParsePayload(
+        file,
+        modelName,
+        promptVersion,
+        candidateRef,
+        testMode,
+        parseData
+      );
+
+      const { data, error: saveError } = await supabase
+        .from("llm_cv_parses")
+        .insert([payload])
+        .select("parse_id");
+
+      console.log("CV parser save result:", { data, saveError });
+
+      if (saveError) throw saveError;
+
+      statusEl.textContent =
+        "CV PDF parsed and saved successfully. Temporary uploaded CV file deleted.";
+    } catch (err) {
+      console.error("CV parser error:", err);
+      statusEl.textContent = `Error: ${err.message}`;
+    } finally {
+      await deleteTempFile(tempFilePath);
     }
   });
 }
@@ -392,6 +544,7 @@ async function initAdmin() {
   wireLogout();
   wireRoleExperiencePreview();
   wireCvForm();
+  wireCvParserForm();
   wireJobForm();
   wireParserForm();
 
