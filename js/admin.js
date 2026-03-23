@@ -17,13 +17,27 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
   window.location.href = "./admin-login.html";
 });
 
+import { supabase } from "./supabaseClient.js";
+
 async function protectAdminPage() {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
+  const { data, error } = await supabase.auth.getSession();
+  console.log("admin page session check:", { data, error });
+
+  if (error) {
+    console.error("Session error:", error);
     window.location.href = "./admin-login.html";
     return;
   }
+
+  if (!data?.session) {
+    console.warn("No active session found on admin page");
+    window.location.href = "./admin-login.html";
+    return;
+  }
+
+  console.log("Admin session OK:", data.session.user);
 }
+
 await protectAdminPage();
 
 function toArray(value) {
