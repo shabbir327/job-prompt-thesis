@@ -51,113 +51,25 @@ let latestRecommendationReady = false;
 
 const SUPPORTED_LOCATIONS = {
   DK: [
-    "København",
-    "Storkøbenhavn",
-    "Aarhus",
-    "Odense",
-    "Aalborg",
-    "Esbjerg",
-    "Randers",
-    "Kolding",
-    "Horsens",
-    "Vejle",
-    "Roskilde",
-    "Herning",
-    "Silkeborg",
-    "Helsingør",
-    "Næstved",
-    "Fredericia",
-    "Viborg",
-    "Køge",
-    "Holstebro",
-    "Taastrup",
-    "Slagelse",
-    "Hillerød",
-    "Sønderborg",
-    "Svendborg",
-    "Holbæk",
-    "Hjørring",
-    "Frederikshavn",
-    "Skive",
-    "Ringsted",
-    "Aabenraa",
-    "Kalundborg",
-    "Middelfart",
-    "Ikast",
-    "Brønderslev",
-    "Grenaa",
-    "Thisted",
-    "Bornholm",
-    "Nordsjælland",
-    "Sjælland",
-    "Fyn",
-    "Midtjylland",
-    "Sydjylland",
-    "Vestjylland"
+    "København", "Storkøbenhavn", "Aarhus", "Odense", "Aalborg", "Esbjerg", "Randers",
+    "Kolding", "Horsens", "Vejle", "Roskilde", "Herning", "Silkeborg", "Helsingør",
+    "Næstved", "Fredericia", "Viborg", "Køge", "Holstebro", "Taastrup", "Slagelse",
+    "Hillerød", "Sønderborg", "Svendborg", "Holbæk", "Hjørring", "Frederikshavn",
+    "Skive", "Ringsted", "Aabenraa", "Kalundborg", "Middelfart", "Ikast",
+    "Brønderslev", "Grenaa", "Thisted", "Bornholm", "Nordsjælland", "Sjælland",
+    "Fyn", "Midtjylland", "Sydjylland", "Vestjylland"
   ],
   DE: [
-    "Berlin",
-    "Hamburg",
-    "München",
-    "Köln",
-    "Frankfurt am Main",
-    "Stuttgart",
-    "Düsseldorf",
-    "Dortmund",
-    "Essen",
-    "Leipzig",
-    "Bremen",
-    "Dresden",
-    "Hannover",
-    "Nürnberg",
-    "Duisburg",
-    "Bochum",
-    "Wuppertal",
-    "Bielefeld",
-    "Bonn",
-    "Münster",
-    "Karlsruhe",
-    "Mannheim",
-    "Augsburg",
-    "Wiesbaden",
-    "Gelsenkirchen",
-    "Mönchengladbach",
-    "Braunschweig",
-    "Chemnitz",
-    "Kiel",
-    "Aachen",
-    "Halle",
-    "Magdeburg",
-    "Freiburg",
-    "Krefeld",
-    "Lübeck",
-    "Oberhausen",
-    "Erfurt",
-    "Mainz",
-    "Rostock",
-    "Kassel",
-    "Hagen",
-    "Hamm",
-    "Saarbrücken",
-    "Potsdam",
-    "Ludwigshafen",
-    "Oldenburg",
-    "Leverkusen",
-    "Osnabrück",
-    "Heidelberg",
-    "Darmstadt",
-    "Regensburg",
-    "Ingolstadt",
-    "Ulm",
-    "Würzburg",
-    "Wolfsburg",
-    "Offenbach",
-    "Heilbronn",
-    "Pforzheim",
-    "Göttingen",
-    "Trier",
-    "Jena",
-    "Flensburg"
+    "Berlin", "Hamburg", "München", "Köln", "Frankfurt am Main", "Stuttgart",
+    "Düsseldorf", "Dortmund", "Essen", "Leipzig", "Bremen", "Dresden", "Hannover",
+    "Nürnberg", "Duisburg", "Bochum", "Wuppertal", "Bielefeld", "Bonn", "Münster",
+    "Karlsruhe", "Mannheim", "Augsburg", "Wiesbaden", "Gelsenkirchen",
+    "Mönchengladbach", "Braunschweig", "Chemnitz", "Kiel", "Aachen", "Halle",
+    "Magdeburg", "Freiburg", "Krefeld", "Lübeck", "Oberhausen", "Erfurt", "Mainz",
+    "Rostock", "Kassel", "Hagen", "Hamm", "Saarbrücken", "Potsdam", "Ludwigshafen",
+    "Oldenburg", "Leverkusen", "Osnabrück", "Heidelberg", "Darmstadt", "Regensburg",
+    "Ingolstadt", "Ulm", "Würzburg", "Wolfsburg", "Offenbach", "Heilbronn",
+    "Pforzheim", "Göttingen", "Trier", "Jena", "Flensburg"
   ]
 };
 
@@ -246,12 +158,8 @@ function jobBoardUrlForResult(queryText, locationText = "", portal = "jobindex")
   const locationSlug = slugifyPart(locationText);
 
   if (portal === "stepstone") {
-    if (qSlug && locationSlug) {
-      return `https://www.stepstone.de/jobs/${qSlug}/in-${locationSlug}/`;
-    }
-    if (qSlug) {
-      return `https://www.stepstone.de/jobs/${qSlug}/`;
-    }
+    if (qSlug && locationSlug) return `https://www.stepstone.de/jobs/${qSlug}/in-${locationSlug}/`;
+    if (qSlug) return `https://www.stepstone.de/jobs/${qSlug}/`;
     return "https://www.stepstone.de/";
   }
 
@@ -389,10 +297,7 @@ function formatRoleExperience(roleExperience) {
 }
 
 function normalizeDisplayValue(value) {
-  if (Array.isArray(value)) {
-    return value.map((v) => normalizeDisplayValue(v)).filter(Boolean).join(", ");
-  }
-
+  if (Array.isArray(value)) return value.map((v) => normalizeDisplayValue(v)).filter(Boolean).join(", ");
   if (value && typeof value === "object") {
     try {
       return JSON.stringify(value);
@@ -400,7 +305,6 @@ function normalizeDisplayValue(value) {
       return String(value);
     }
   }
-
   return clean(value);
 }
 
@@ -526,36 +430,24 @@ function onEdit() {
 }
 
 async function insertCandidateProfile(payload) {
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("candidate_profiles")
-    .insert([payload])
-    .select("submission_id");
+    .insert([payload]);
 
   if (error) throw error;
 
-  if (!data || data.length === 0) {
-    throw new Error("Insert succeeded but no row returned");
-  }
-
-  return data[0];
+  return { submission_id: payload.submission_id };
 }
 
 async function updateRecommendationRating(submissionId, ratingValue) {
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("candidate_profiles")
     .update({ recommendation_rating: ratingValue })
-    .eq("submission_id", submissionId)
-    .select("*");
+    .eq("submission_id", submissionId);
 
   if (error) throw error;
 
-  console.log("Rating update result:", data);
-
-  if (!data || data.length === 0) {
-    throw new Error("No row matched submission_id");
-  }
-
-  return data[0];
+  return true;
 }
 
 async function buildMultilingualQuery(roleText, aboutText) {
@@ -681,48 +573,13 @@ function mergeProfiles(promptData, cvData, promptInput) {
       : Array.isArray(promptData?.role_experience)
       ? promptData.role_experience
       : null,
-    danish_keywords: [
-      ...new Set([
-        ...asArray(promptData?.danish_keywords),
-        ...asArray(cvData?.danish_keywords),
-      ]),
-    ],
-    english_keywords: [
-      ...new Set([
-        ...asArray(promptData?.english_keywords),
-        ...asArray(cvData?.english_keywords),
-      ]),
-    ],
-    adjacent_roles: [
-      ...new Set([
-        ...asArray(promptData?.adjacent_roles),
-        ...asArray(cvData?.adjacent_roles),
-      ]),
-    ],
-    skills: [
-      ...new Set([
-        ...asArray(promptData?.skills),
-        ...asArray(cvData?.skills),
-      ]),
-    ],
-    industries: [
-      ...new Set([
-        ...asArray(promptData?.industries),
-        ...asArray(cvData?.industries),
-      ]),
-    ],
-    education: [
-      ...new Set([
-        ...asArray(promptData?.education),
-        ...asArray(cvData?.education),
-      ]),
-    ],
-    languages: [
-      ...new Set([
-        ...asArray(promptData?.languages),
-        ...asArray(cvData?.languages),
-      ]),
-    ],
+    danish_keywords: [...new Set([...asArray(promptData?.danish_keywords), ...asArray(cvData?.danish_keywords)])],
+    english_keywords: [...new Set([...asArray(promptData?.english_keywords), ...asArray(cvData?.english_keywords)])],
+    adjacent_roles: [...new Set([...asArray(promptData?.adjacent_roles), ...asArray(cvData?.adjacent_roles)])],
+    skills: [...new Set([...asArray(promptData?.skills), ...asArray(cvData?.skills)])],
+    industries: [...new Set([...asArray(promptData?.industries), ...asArray(cvData?.industries)])],
+    education: [...new Set([...asArray(promptData?.education), ...asArray(cvData?.education)])],
+    languages: [...new Set([...asArray(promptData?.languages), ...asArray(cvData?.languages)])],
     location: mergedLocations,
     years_experience:
       asNullableNumber(cvData?.years_experience) ??
@@ -760,9 +617,7 @@ jobCountry?.addEventListener("change", () => {
 recommendationRating?.addEventListener("change", async () => {
   const ratingValue = asNullableNumber(recommendationRating?.value);
 
-  if (!latestRecommendationReady || !latestSubmissionId || !ratingValue) {
-    return;
-  }
+  if (!latestRecommendationReady || !latestSubmissionId || !ratingValue) return;
 
   try {
     await updateRecommendationRating(latestSubmissionId, ratingValue);
@@ -971,7 +826,7 @@ form?.addEventListener("submit", async (e) => {
       ...recCols,
     });
 
-    latestSubmissionId = inserted.submissionId;
+    latestSubmissionId = inserted.submission_id;
     latestRecommendationReady = true;
     setRatingEnabled(true, "Please rate the recommendations.");
 
