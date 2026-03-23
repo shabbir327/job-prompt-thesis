@@ -1,5 +1,6 @@
 import { supabase } from "./supabaseClient.js";
 
+
 const BASE_PATH = "/job-prompt-thesis";
 
 async function protectAdminPage() {
