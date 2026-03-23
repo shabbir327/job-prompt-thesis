@@ -61,7 +61,7 @@
     console.log("login page session check:", { data, error });
 
     if (data?.session) {
-      window.location.href = "./admin.html";
+      if (session) window.location.href = "/job-prompt-thesis/admin.html";
     }
   }
 
@@ -84,7 +84,7 @@
     }
 
     msgEl.textContent = "Login successful, redirecting...";
-    window.location.href = "./admin.html";
+    window.location.href = "/job-prompt-thesis/admin.html";
   });
 
   checkSession();
