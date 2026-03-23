@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Login - JPS</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #111827;
+      color: white;
+      display: grid;
+      place-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .card {
+      width: 100%;
+      max-width: 420px;
+      background: #1f2937;
+      padding: 28px;
+      border-radius: 16px;
+    }
+    input, button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 12px;
+      border-radius: 10px;
+      border: 1px solid #374151;
+      box-sizing: border-box;
+    }
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    .msg { margin-top: 12px; color: #fca5a5; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>JPS Admin Login</h2>
+    <p>Restricted research workspace</p>
+    <input id="email" type="email" placeholder="Admin email" />
+    <input id="password" type="password" placeholder="Password" />
+    <button id="loginBtn">Log in</button>
+    <div id="msg" class="msg"></div>
+  </div>
+
+  <script type="module">
+    import { supabase } from "./supabaseClient.js";
+
+    const emailEl = document.getElementById("email");
+    const passwordEl = document.getElementById("password");
+    const msgEl = document.getElementById("msg");
+    const loginBtn = document.getElementById("loginBtn");
+
+    async function checkSession() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) window.location.href = "./admin.html";
+    }
+
+    loginBtn.addEventListener("click", async () => {
+      msgEl.textContent = "";
+
+      const email = emailEl.value.trim();
+      const password = passwordEl.value;
+
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+      if (error) {
+        msgEl.textContent = error.message;
+        return;
+      }
+
+      window.location.href = "./admin.html";
+    });
+
+    checkSession();
+  </script>
+</body>
+</html>
