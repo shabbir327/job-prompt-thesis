@@ -1,388 +1,349 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>JPS Admin</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      background: #f3f4f6;
-      color: #111827;
-    }
+import { supabase } from "./supabaseClient.js";
 
-    header {
-      background: #111827;
-      color: white;
-      padding: 16px 24px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
+const BASE_PATH = "/job-prompt-thesis";
 
-    .container {
-      max-width: 1100px;
-      margin: 24px auto;
-      padding: 0 16px;
-    }
+async function protectAdminPage() {
+  const { data, error } = await supabase.auth.getSession();
+  console.log("admin page session check:", { data, error });
 
-    .tabs {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-    }
+  if (error) {
+    console.error("Session error:", error);
+    window.location.href = `${BASE_PATH}/admin-login.html`;
+    return false;
+  }
 
-    .tab-btn {
-      padding: 10px 14px;
-      border: none;
-      border-radius: 10px;
-      background: #d1d5db;
-      cursor: pointer;
-    }
+  if (!data?.session) {
+    console.warn("No active session found on admin page");
+    window.location.href = `${BASE_PATH}/admin-login.html`;
+    return false;
+  }
 
-    .tab-btn.active {
-      background: #2563eb;
-      color: white;
-    }
+  console.log("Admin session OK:", data.session.user);
+  return true;
+}
 
-    .panel {
-      display: none;
-      background: white;
-      padding: 20px;
-      border-radius: 16px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-    }
+function normalizeList(value) {
+  return [
+    ...new Set(
+      String(value || "")
+        .split(/[;,]/)
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean)
+    ),
+  ];
+}
 
-    .panel.active {
-      display: block;
-    }
+function normalizeSingle(value) {
+  const v = String(value || "").trim().toLowerCase();
+  return v || null;
+}
 
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 14px;
-    }
+function safeNumber(value) {
+  if (value === "" || value == null) return null;
+  const n = Number(value);
+  return Number.isNaN(n) ? null : n;
+}
 
-    .full {
-      grid-column: 1 / -1;
-    }
+function makeId(prefix) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
 
-    label {
-      display: block;
-      font-size: 14px;
-      margin-bottom: 6px;
-      font-weight: 600;
-    }
+function parseRoleExperienceText(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
 
-    input,
-    textarea,
-    select {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #cbd5e1;
-      border-radius: 10px;
-      box-sizing: border-box;
-      font: inherit;
-    }
+  const entries = raw
+    .split(";")
+    .map((item) => item.trim())
+    .filter(Boolean);
 
-    textarea {
-      min-height: 110px;
-      resize: vertical;
-    }
+  const parsed = [];
 
-    button.primary {
-      margin-top: 16px;
-      padding: 12px 18px;
-      border: none;
-      border-radius: 10px;
-      background: #2563eb;
-      color: white;
-      cursor: pointer;
-    }
+  for (const entry of entries) {
+    const match = entry.match(/^(.*?)(\d+(?:\.\d+)?)\s*(year|years|yr|yrs)$/i);
+    if (!match) continue;
 
-    .status {
-      margin-top: 12px;
-      font-size: 14px;
-    }
+    const role = match[1].trim().toLowerCase();
+    const years = Number(match[2]);
 
-    .preview {
-      margin-top: 10px;
-      padding: 14px;
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      white-space: pre-wrap;
-      font-family: monospace;
-      min-height: 48px;
-    }
+    parsed.push({ role, years });
+  }
 
-    .hint {
-      font-size: 13px;
-      color: #475569;
-      margin-top: 4px;
-    }
+  return parsed.length ? parsed : null;
+}
 
-    @media (max-width: 800px) {
-      .grid {
-        grid-template-columns: 1fr;
+function validateCvPayload(payload) {
+  const errors = [];
+  if (!payload.cv_id) errors.push("CV ID is required.");
+  if (!payload.primary_role) errors.push("Primary role is required.");
+
+  const rawRoleExp = document.getElementById("cv_role_experience")?.value?.trim() || "";
+  if (rawRoleExp && !payload.role_experience) {
+    errors.push("Role experience format is invalid. Use format like: Data Analyst 2 years; Manager 1 year");
+  }
+
+  return errors;
+}
+
+function validateJobPayload(payload) {
+  const errors = [];
+  if (!payload.raw_job_title && !payload.primary_role) {
+    errors.push("Add at least a raw job title or a primary role.");
+  }
+  return errors;
+}
+
+function wireTabs() {
+  const tabs = document.querySelectorAll(".tab-btn[data-tab]");
+  const panels = document.querySelectorAll(".panel");
+
+  console.log("tabs found:", tabs.length, "panels found:", panels.length);
+
+  tabs.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const targetId = btn.dataset.tab;
+      console.log("switching to tab:", targetId);
+
+      tabs.forEach((b) => b.classList.remove("active"));
+      panels.forEach((p) => p.classList.remove("active"));
+
+      btn.classList.add("active");
+      const panel = document.getElementById(targetId);
+      if (panel) {
+        panel.classList.add("active");
+      } else {
+        console.error("Panel not found for tab:", targetId);
       }
+    });
+  });
+}
+
+function wireLogout() {
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (!logoutBtn) return;
+
+  logoutBtn.addEventListener("click", async () => {
+    await supabase.auth.signOut();
+    window.location.href = `${BASE_PATH}/admin-login.html`;
+  });
+}
+
+function wireRoleExperiencePreview() {
+  const input = document.getElementById("cv_role_experience");
+  const preview = document.getElementById("cv_role_experience_preview");
+
+  if (!input || !preview) return;
+
+  const update = () => {
+    const parsed = parseRoleExperienceText(input.value);
+    preview.textContent = parsed
+      ? JSON.stringify(parsed, null, 2)
+      : "Example: Data Analyst 2 years; Manager 1 year";
+  };
+
+  input.addEventListener("input", update);
+  update();
+}
+
+function wireCvForm() {
+  const saveCvBtn = document.getElementById("saveCvBtn");
+  const statusEl = document.getElementById("cvStatus");
+  if (!saveCvBtn || !statusEl) return;
+
+  saveCvBtn.addEventListener("click", async () => {
+    statusEl.textContent = "Saving CV annotation...";
+
+    try {
+      const payload = {
+        annotation_id: makeId("cva"),
+        cv_id: document.getElementById("cv_id").value.trim(),
+        source_ref: document.getElementById("cv_source_ref").value.trim() || null,
+        raw_text: document.getElementById("cv_raw_text").value.trim() || null,
+        primary_role: normalizeSingle(document.getElementById("cv_primary_role").value),
+        normalized_roles: normalizeList(document.getElementById("cv_normalized_roles").value),
+        skills: normalizeList(document.getElementById("cv_skills").value),
+        languages: normalizeList(document.getElementById("cv_languages").value),
+        education: normalizeList(document.getElementById("cv_education").value),
+        industries: normalizeList(document.getElementById("cv_industries").value),
+        locations: normalizeList(document.getElementById("cv_locations").value),
+        years_experience_total: safeNumber(document.getElementById("cv_years_experience_total").value),
+        seniority: normalizeSingle(document.getElementById("cv_seniority").value),
+        role_experience: parseRoleExperienceText(document.getElementById("cv_role_experience").value),
+        annotation_notes: document.getElementById("cv_annotation_notes").value.trim() || null,
+        ambiguity_flag: document.getElementById("cv_ambiguity_flag").value === "true",
+      };
+
+      console.log("CV payload:", payload);
+
+      const errors = validateCvPayload(payload);
+      if (errors.length) throw new Error(errors.join("\n"));
+
+      const { data, error } = await supabase
+        .from("cv_annotations")
+        .insert([payload])
+        .select("annotation_id");
+
+      console.log("CV insert result:", { data, error });
+
+      if (error) throw error;
+
+      statusEl.textContent = "CV annotation saved successfully.";
+    } catch (err) {
+      console.error("CV save error:", err);
+      statusEl.textContent = `Error: ${err.message}`;
     }
-  </style>
-</head>
-<body>
-  <header>
-    <div><strong>JPS Admin Workspace</strong></div>
-    <button id="logoutBtn" class="tab-btn">Log out</button>
-  </header>
+  });
+}
 
-  <div class="container">
-    <div class="tabs">
-      <button class="tab-btn active" data-tab="cvPanel">Manual CV Annotation</button>
-      <button class="tab-btn" data-tab="jobPanel">Manual Job Annotation</button>
-      <button class="tab-btn" data-tab="parserPanel">LLM Job PDF Parser</button>
-    </div>
+function wireJobForm() {
+  const saveJobBtn = document.getElementById("saveJobBtn");
+  const statusEl = document.getElementById("jobStatus");
+  if (!saveJobBtn || !statusEl) return;
 
-    <section id="cvPanel" class="panel active">
-      <h2>Manual CV Annotation</h2>
-      <div class="grid">
-        <div>
-          <label for="cv_id">CV ID</label>
-          <input id="cv_id" />
-        </div>
+  saveJobBtn.addEventListener("click", async () => {
+    statusEl.textContent = "Saving job annotation...";
 
-        <div>
-          <label for="cv_source_ref">Source Ref</label>
-          <input id="cv_source_ref" />
-        </div>
+    try {
+      const payload = {
+        annotation_id: makeId("joba"),
+        job_id: document.getElementById("job_id").value.trim() || null,
+        job_url: document.getElementById("job_url").value.trim() || null,
+        raw_job_title: document.getElementById("job_title").value.trim() || null,
+        raw_job_text: document.getElementById("job_raw_text").value.trim() || null,
+        company_name: document.getElementById("job_company_name").value.trim() || null,
+        country: normalizeSingle(document.getElementById("job_country").value),
+        locations: normalizeList(document.getElementById("job_locations").value),
+        primary_role: normalizeSingle(document.getElementById("job_primary_role").value),
+        normalized_roles: normalizeList(document.getElementById("job_normalized_roles").value),
+        skills: normalizeList(document.getElementById("job_skills").value),
+        languages: normalizeList(document.getElementById("job_languages").value),
+        education: normalizeList(document.getElementById("job_education").value),
+        industries: normalizeList(document.getElementById("job_industries").value),
+        years_experience_required: safeNumber(document.getElementById("job_years_experience_required").value),
+        seniority: normalizeSingle(document.getElementById("job_seniority").value),
+        employment_type: normalizeSingle(document.getElementById("job_employment_type").value),
+        annotation_notes: document.getElementById("job_annotation_notes").value.trim() || null,
+        ambiguity_flag: document.getElementById("job_ambiguity_flag").value === "true",
+      };
 
-        <div>
-          <label for="cv_primary_role">Primary Role</label>
-          <input id="cv_primary_role" />
-        </div>
+      console.log("Job payload:", payload);
 
-        <div>
-          <label for="cv_seniority">Seniority</label>
-          <select id="cv_seniority">
-            <option value="">Select</option>
-            <option value="junior">junior</option>
-            <option value="mid">mid</option>
-            <option value="senior">senior</option>
-          </select>
-        </div>
+      const errors = validateJobPayload(payload);
+      if (errors.length) throw new Error(errors.join("\n"));
 
-        <div>
-          <label for="cv_normalized_roles">Normalized Roles</label>
-          <textarea id="cv_normalized_roles" placeholder="data analyst, business intelligence analyst"></textarea>
-          <div class="hint">Use commas or semicolons.</div>
-        </div>
+      const { data, error } = await supabase
+        .from("job_annotations")
+        .insert([payload])
+        .select("annotation_id");
 
-        <div>
-          <label for="cv_skills">Skills</label>
-          <textarea id="cv_skills" placeholder="python, sql, excel"></textarea>
-          <div class="hint">Use commas or semicolons.</div>
-        </div>
+      console.log("Job insert result:", { data, error });
 
-        <div>
-          <label for="cv_languages">Languages</label>
-          <textarea id="cv_languages" placeholder="english, danish"></textarea>
-          <div class="hint">Use commas or semicolons.</div>
-        </div>
+      if (error) throw error;
 
-        <div>
-          <label for="cv_education">Education</label>
-          <textarea id="cv_education" placeholder="msc data science, bsc computer science"></textarea>
-          <div class="hint">Use commas or semicolons.</div>
-        </div>
+      statusEl.textContent = "Job annotation saved successfully.";
+    } catch (err) {
+      console.error("Job save error:", err);
+      statusEl.textContent = `Error: ${err.message}`;
+    }
+  });
+}
 
-        <div>
-          <label for="cv_industries">Industries</label>
-          <textarea id="cv_industries" placeholder="pharmaceutical, logistics"></textarea>
-          <div class="hint">Use commas or semicolons.</div>
-        </div>
+function wireParserForm() {
+  const parseBtn = document.getElementById("parseJobPdfBtn");
+  const statusEl = document.getElementById("parserStatus");
+  const previewEl = document.getElementById("parserPreview");
+  const fileInput = document.getElementById("jobPdfFile");
 
-        <div>
-          <label for="cv_locations">Locations</label>
-          <textarea id="cv_locations" placeholder="denmark, odense"></textarea>
-          <div class="hint">Use commas or semicolons.</div>
-        </div>
+  if (!parseBtn || !statusEl || !previewEl || !fileInput) return;
 
-        <div>
-          <label for="cv_years_experience_total">Years Experience Total</label>
-          <input id="cv_years_experience_total" type="number" step="0.1" />
-        </div>
+  parseBtn.addEventListener("click", async () => {
+    statusEl.textContent = "Parsing...";
+    previewEl.textContent = "";
 
-        <div>
-          <label for="cv_ambiguity_flag">Ambiguity Flag</label>
-          <select id="cv_ambiguity_flag">
-            <option value="false">false</option>
-            <option value="true">true</option>
-          </select>
-        </div>
+    try {
+      const file = fileInput.files?.[0];
+      if (!file) throw new Error("Please select a PDF.");
 
-        <div class="full">
-          <label for="cv_role_experience">Role Experience</label>
-          <textarea
-            id="cv_role_experience"
-            placeholder="Data Analyst 2 years; Supply Chain Analyst 1 year; Consumer Experience Analyst 6 years"
-          ></textarea>
-          <div class="hint">Format: Role 2 years; Another Role 1 year</div>
-          <div id="cv_role_experience_preview" class="preview"></div>
-        </div>
+      const modelName = document.getElementById("parser_model_name").value.trim() || "mistral";
+      const promptVersion = document.getElementById("parser_prompt_version").value.trim() || "v1";
+      const filePath = `job-pdfs/${Date.now()}-${file.name}`;
 
-        <div class="full">
-          <label for="cv_raw_text">Raw Text</label>
-          <textarea id="cv_raw_text"></textarea>
-        </div>
+      const { error: uploadError } = await supabase.storage
+        .from("admin-documents")
+        .upload(filePath, file, { upsert: false });
 
-        <div class="full">
-          <label for="cv_annotation_notes">Notes</label>
-          <textarea id="cv_annotation_notes"></textarea>
-        </div>
-      </div>
+      if (uploadError) throw uploadError;
 
-      <button id="saveCvBtn" class="primary">Save CV Annotation</button>
-      <div id="cvStatus" class="status"></div>
-    </section>
+      const { data: publicUrlData } = supabase.storage
+        .from("admin-documents")
+        .getPublicUrl(filePath);
 
-    <section id="jobPanel" class="panel">
-      <h2>Manual Job Annotation</h2>
-      <div class="grid">
-        <div>
-          <label for="job_id">Job ID</label>
-          <input id="job_id" />
-        </div>
+      const source_pdf_url = publicUrlData.publicUrl;
 
-        <div>
-          <label for="job_url">Job URL</label>
-          <input id="job_url" />
-        </div>
+      const { data: parseData, error: parseError } = await supabase.functions.invoke("parse-job-pdf", {
+        body: {
+          pdf_url: source_pdf_url,
+          model_name: modelName,
+          prompt_version: promptVersion,
+        },
+      });
 
-        <div>
-          <label for="job_title">Raw Job Title</label>
-          <input id="job_title" />
-        </div>
+      if (parseError) throw parseError;
 
-        <div>
-          <label for="job_company_name">Company Name</label>
-          <input id="job_company_name" />
-        </div>
+      const parsed = parseData?.parsed_output || parseData || {};
+      previewEl.textContent = JSON.stringify(parsed, null, 2);
 
-        <div>
-          <label for="job_country">Country</label>
-          <input id="job_country" />
-        </div>
+      const payload = {
+        parse_id: makeId("llmjob"),
+        source_file_name: file.name,
+        source_pdf_url,
+        model_name: modelName,
+        prompt_version: promptVersion,
+        raw_extracted_text: parseData?.raw_extracted_text || null,
+        parsed_output: parsed,
+        primary_role: normalizeSingle(parsed.primary_role),
+        normalized_roles: Array.isArray(parsed.normalized_roles) ? parsed.normalized_roles.map((x) => String(x).trim().toLowerCase()).filter(Boolean) : [],
+        skills: Array.isArray(parsed.skills) ? parsed.skills.map((x) => String(x).trim().toLowerCase()).filter(Boolean) : [],
+        languages: Array.isArray(parsed.languages) ? parsed.languages.map((x) => String(x).trim().toLowerCase()).filter(Boolean) : [],
+        education: Array.isArray(parsed.education) ? parsed.education.map((x) => String(x).trim().toLowerCase()).filter(Boolean) : [],
+        industries: Array.isArray(parsed.industries) ? parsed.industries.map((x) => String(x).trim().toLowerCase()).filter(Boolean) : [],
+        locations: Array.isArray(parsed.locations) ? parsed.locations.map((x) => String(x).trim().toLowerCase()).filter(Boolean) : [],
+        years_experience_required: safeNumber(parsed.years_experience_required),
+        seniority: normalizeSingle(parsed.seniority),
+        employment_type: normalizeSingle(parsed.employment_type),
+        parse_status: "completed",
+        notes: null,
+      };
 
-        <div>
-          <label for="job_employment_type">Employment Type</label>
-          <input id="job_employment_type" placeholder="full-time, permanent, contract" />
-        </div>
+      const { data, error: saveError } = await supabase
+        .from("llm_job_parses")
+        .insert([payload])
+        .select("parse_id");
 
-        <div>
-          <label for="job_primary_role">Primary Role</label>
-          <input id="job_primary_role" />
-        </div>
+      console.log("Parser save result:", { data, saveError });
 
-        <div>
-          <label for="job_seniority">Seniority</label>
-          <select id="job_seniority">
-            <option value="">Select</option>
-            <option value="junior">junior</option>
-            <option value="mid">mid</option>
-            <option value="senior">senior</option>
-          </select>
-        </div>
+      if (saveError) throw saveError;
 
-        <div>
-          <label for="job_normalized_roles">Normalized Roles</label>
-          <textarea id="job_normalized_roles" placeholder="service technician, field service technician"></textarea>
-          <div class="hint">Use commas or semicolons.</div>
-        </div>
+      statusEl.textContent = "Job PDF parsed and saved successfully.";
+    } catch (err) {
+      console.error("Parser error:", err);
+      statusEl.textContent = `Error: ${err.message}`;
+    }
+  });
+}
 
-        <div>
-          <label for="job_skills">Skills</label>
-          <textarea id="job_skills" placeholder="hydraulics, electrical systems, maintenance"></textarea>
-          <div class="hint">Use commas or semicolons.</div>
-        </div>
+async function initAdmin() {
+  const ok = await protectAdminPage();
+  if (!ok) return;
 
-        <div>
-          <label for="job_languages">Languages</label>
-          <textarea id="job_languages" placeholder="danish, english"></textarea>
-          <div class="hint">Use commas or semicolons.</div>
-        </div>
+  wireTabs();
+  wireLogout();
+  wireRoleExperiencePreview();
+  wireCvForm();
+  wireJobForm();
+  wireParserForm();
 
-        <div>
-          <label for="job_education">Education</label>
-          <textarea id="job_education" placeholder="automotive mechanic, technical background"></textarea>
-          <div class="hint">Use commas or semicolons.</div>
-        </div>
+  console.log("Admin UI initialized");
+}
 
-        <div>
-          <label for="job_industries">Industries</label>
-          <textarea id="job_industries" placeholder="logistics, manufacturing"></textarea>
-          <div class="hint">Use commas or semicolons.</div>
-        </div>
-
-        <div>
-          <label for="job_locations">Locations</label>
-          <textarea id="job_locations" placeholder="south denmark, aabenraa, padborg"></textarea>
-          <div class="hint">Use commas or semicolons.</div>
-        </div>
-
-        <div>
-          <label for="job_years_experience_required">Years Experience Required</label>
-          <input id="job_years_experience_required" type="number" step="0.1" />
-        </div>
-
-        <div>
-          <label for="job_ambiguity_flag">Ambiguity Flag</label>
-          <select id="job_ambiguity_flag">
-            <option value="false">false</option>
-            <option value="true">true</option>
-          </select>
-        </div>
-
-        <div class="full">
-          <label for="job_raw_text">Raw Job Text</label>
-          <textarea id="job_raw_text"></textarea>
-        </div>
-
-        <div class="full">
-          <label for="job_annotation_notes">Notes</label>
-          <textarea id="job_annotation_notes"></textarea>
-        </div>
-      </div>
-
-      <button id="saveJobBtn" class="primary">Save Job Annotation</button>
-      <div id="jobStatus" class="status"></div>
-    </section>
-
-    <section id="parserPanel" class="panel">
-      <h2>LLM Job PDF Parser</h2>
-      <div class="grid">
-        <div class="full">
-          <label for="jobPdfFile">Upload Job PDF</label>
-          <input id="jobPdfFile" type="file" accept="application/pdf" />
-        </div>
-
-        <div>
-          <label for="parser_model_name">Model Name</label>
-          <input id="parser_model_name" value="mistral" />
-        </div>
-
-        <div>
-          <label for="parser_prompt_version">Prompt Version</label>
-          <input id="parser_prompt_version" value="v1" />
-        </div>
-      </div>
-
-      <button id="parseJobPdfBtn" class="primary">Parse Job PDF</button>
-      <div id="parserStatus" class="status"></div>
-      <div id="parserPreview" class="preview"></div>
-    </section>
-  </div>
-
-  <script type="module" src="./js/admin.js"></script>
-</body>
-</html>
+initAdmin();
