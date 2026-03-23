@@ -1,5 +1,6 @@
 import { supabase } from "./supabaseClient.js";
 
+const BASE_PATH = "/job-prompt-thesis";
 const tabs = document.querySelectorAll(".tab-btn[data-tab]");
 const panels = document.querySelectorAll(".panel");
 
@@ -14,7 +15,7 @@ tabs.forEach((btn) => {
 
 document.getElementById("logoutBtn").addEventListener("click", async () => {
   await supabase.auth.signOut();
-  window.location.href = "./admin-login.html";
+  window.location.href = "/job-prompt-thesis/admin-login.html";
 });
 
 import { supabase } from "./supabaseClient.js";
@@ -25,13 +26,13 @@ async function protectAdminPage() {
 
   if (error) {
     console.error("Session error:", error);
-    window.location.href = "./admin-login.html";
+    window.location.href = `${BASE_PATH}/admin.html`;
     return;
   }
 
   if (!data?.session) {
     console.warn("No active session found on admin page");
-    window.location.href = "./admin-login.html";
+    window.location.href = `${BASE_PATH}/admin-login.html`;
     return;
   }
 
