@@ -73,6 +73,15 @@ function parseRoleExperienceText(value) {
   return parsed.length ? parsed : null;
 }
 
+function sanitizeFilename(name) {
+  return String(name || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")   // remove accents/diacritics
+    .replace(/[^a-zA-Z0-9._-]/g, "_")  // replace unsafe chars
+    .replace(/_+/g, "_")               // collapse repeated underscores
+    .replace(/^_+|_+$/g, "");          // trim underscores
+}
+
 function validateCvPayload(payload) {
   const errors = [];
   if (!payload.cv_id) errors.push("CV ID is required.");
@@ -267,7 +276,8 @@ function wireParserForm() {
 
       const modelName = document.getElementById("parser_model_name").value.trim() || "mistral";
       const promptVersion = document.getElementById("parser_prompt_version").value.trim() || "v1";
-      const filePath = `job-pdfs/${Date.now()}-${file.name}`;
+      const safeFileName = sanitizeFilename(file.name);
+      const filePath = `job-pdfs/${Date.now()}-${safeFileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from("admin-documents")
@@ -281,13 +291,27 @@ function wireParserForm() {
 
       const source_pdf_url = publicUrlData.publicUrl;
 
-      const { data: parseData, error: parseError } = await supabase.functions.invoke("parse-job-pdf", {
-        body: {
-          pdf_url: source_pdf_url,
-          model_name: modelName,
-          prompt_version: promptVersion,
-        },
-      });
+      const {
+      data: { session }
+        } = await supabase.auth.getSession();
+        
+        if (!session?.access_token) {
+          throw new Error("No active session token found for function call.");
+        }
+
+        const { data: parseData, error: parseError } = await supabase.functions.invoke(
+          "parse-job-pdf",
+          {
+            body: {
+              pdf_url: source_pdf_url,
+              model_name: modelName,
+              prompt_version: promptVersion,
+            },
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          }
+        );
 
       if (parseError) throw parseError;
 
