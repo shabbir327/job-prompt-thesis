@@ -48,36 +48,46 @@
     <div id="msg" class="msg"></div>
   </div>
 
-  <script type="module">
-    import { supabase } from "./supabaseClient.js";
+ <script type="module">
+  import { supabase } from "./supabaseClient.js";
 
-    const emailEl = document.getElementById("email");
-    const passwordEl = document.getElementById("password");
-    const msgEl = document.getElementById("msg");
-    const loginBtn = document.getElementById("loginBtn");
+  const emailEl = document.getElementById("email");
+  const passwordEl = document.getElementById("password");
+  const msgEl = document.getElementById("msg");
+  const loginBtn = document.getElementById("loginBtn");
 
-    async function checkSession() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) window.location.href = "./admin.html";
-    }
+  async function checkSession() {
+    const { data, error } = await supabase.auth.getSession();
+    console.log("login page session check:", { data, error });
 
-    loginBtn.addEventListener("click", async () => {
-      msgEl.textContent = "";
-
-      const email = emailEl.value.trim();
-      const password = passwordEl.value;
-
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-
-      if (error) {
-        msgEl.textContent = error.message;
-        return;
-      }
-
+    if (data?.session) {
       window.location.href = "./admin.html";
+    }
+  }
+
+  loginBtn.addEventListener("click", async () => {
+    msgEl.textContent = "Logging in...";
+
+    const email = emailEl.value.trim();
+    const password = passwordEl.value;
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
     });
 
-    checkSession();
-  </script>
+    console.log("signInWithPassword result:", { data, error });
+
+    if (error) {
+      msgEl.textContent = error.message;
+      return;
+    }
+
+    msgEl.textContent = "Login successful, redirecting...";
+    window.location.href = "./admin.html";
+  });
+
+  checkSession();
+</script>
 </body>
 </html>
