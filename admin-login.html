@@ -51,6 +51,8 @@
  <script type="module">
   import { supabase } from "./js/supabaseClient.js";
 
+  const BASE_PATH = "/job-prompt-thesis";
+
   const emailEl = document.getElementById("email");
   const passwordEl = document.getElementById("password");
   const msgEl = document.getElementById("msg");
@@ -61,7 +63,7 @@
     console.log("login page session check:", { data, error });
 
     if (data?.session) {
-      window.location.href = "/job-prompt-thesis/admin.html";
+      window.location.href = `${BASE_PATH}/admin.html`;
     }
   }
 
@@ -84,7 +86,7 @@
     }
 
     msgEl.textContent = "Login successful, redirecting...";
-    window.location.href = "/job-prompt-thesis/admin.html";
+    window.location.href = `${BASE_PATH}/admin.html`;
   });
 
   checkSession();
