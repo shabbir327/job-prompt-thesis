@@ -1,4 +1,4 @@
-import { supabase } from "./js/supabaseClient.js";
+import { supabase } from "./supabaseClient.js";
 
 const BASE_PATH = "/job-prompt-thesis";
 const tabs = document.querySelectorAll(".tab-btn[data-tab]");
@@ -17,8 +17,6 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
   await supabase.auth.signOut();
   window.location.href = "/job-prompt-thesis/admin-login.html";
 });
-
-import { supabase } from "./supabaseClient.js";
 
 async function protectAdminPage() {
   const { data, error } = await supabase.auth.getSession();
