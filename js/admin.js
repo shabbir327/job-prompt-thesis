@@ -274,10 +274,15 @@ function wireParserForm() {
       const file = fileInput.files?.[0];
       if (!file) throw new Error("Please select a PDF.");
 
-      const modelName = document.getElementById("parser_model_name").value.trim() || "mistral";
-      const promptVersion = document.getElementById("parser_prompt_version").value.trim() || "v1";
+      const modelName =
+        document.getElementById("parser_model_name").value.trim() || "mistral";
+      const promptVersion =
+        document.getElementById("parser_prompt_version").value.trim() || "v1";
+
       const safeFileName = sanitizeFilename(file.name);
       const filePath = `job-pdfs/${Date.now()}-${safeFileName}`;
+
+      console.log("Uploading file to:", filePath);
 
       const { error: uploadError } = await supabase.storage
         .from("admin-documents")
@@ -290,32 +295,40 @@ function wireParserForm() {
         .getPublicUrl(filePath);
 
       const source_pdf_url = publicUrlData.publicUrl;
+      console.log("Public PDF URL:", source_pdf_url);
 
       const {
-      data: { session }
-        } = await supabase.auth.getSession();
-        
-        if (!session?.access_token) {
-          throw new Error("No active session token found for function call.");
-        }
+        data: { session }
+      } = await supabase.auth.getSession();
 
-        const { data: parseData, error: parseError } = await supabase.functions.invoke(
-          "parse-job-pdf",
-          {
-            body: {
-              pdf_url: source_pdf_url,
-              model_name: modelName,
-              prompt_version: promptVersion,
-            },
-            headers: {
-              Authorization: `Bearer ${session.access_token}`,
-            },
-          }
-        );
+      if (!session?.access_token) {
+        throw new Error("No active session token found.");
+      }
 
-      if (parseError) throw parseError;
+      const functionUrl =
+        "https://vjwcpzprgqzbjmwjrfrc.supabase.co/functions/v1/parse-job-pdf";
 
-      const parsed = parseData?.parsed_output || parseData || {};
+      const response = await fetch(functionUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          pdf_url: source_pdf_url,
+          model_name: modelName,
+          prompt_version: promptVersion
+        })
+      });
+
+      const parseData = await response.json();
+      console.log("parse-job-pdf response:", response.status, parseData);
+
+      if (!response.ok) {
+        throw new Error(parseData?.error || `Function returned ${response.status}`);
+      }
+
+      const parsed = parseData?.parsed_output || {};
       previewEl.textContent = JSON.stringify(parsed, null, 2);
 
       const payload = {
@@ -326,18 +339,32 @@ function wireParserForm() {
         prompt_version: promptVersion,
         raw_extracted_text: parseData?.raw_extracted_text || null,
         parsed_output: parsed,
+
         primary_role: normalizeSingle(parsed.primary_role),
-        normalized_roles: Array.isArray(parsed.normalized_roles) ? parsed.normalized_roles.map((x) => String(x).trim().toLowerCase()).filter(Boolean) : [],
-        skills: Array.isArray(parsed.skills) ? parsed.skills.map((x) => String(x).trim().toLowerCase()).filter(Boolean) : [],
-        languages: Array.isArray(parsed.languages) ? parsed.languages.map((x) => String(x).trim().toLowerCase()).filter(Boolean) : [],
-        education: Array.isArray(parsed.education) ? parsed.education.map((x) => String(x).trim().toLowerCase()).filter(Boolean) : [],
-        industries: Array.isArray(parsed.industries) ? parsed.industries.map((x) => String(x).trim().toLowerCase()).filter(Boolean) : [],
-        locations: Array.isArray(parsed.locations) ? parsed.locations.map((x) => String(x).trim().toLowerCase()).filter(Boolean) : [],
+        normalized_roles: Array.isArray(parsed.normalized_roles)
+          ? parsed.normalized_roles.map((x) => String(x).trim().toLowerCase()).filter(Boolean)
+          : [],
+        skills: Array.isArray(parsed.skills)
+          ? parsed.skills.map((x) => String(x).trim().toLowerCase()).filter(Boolean)
+          : [],
+        languages: Array.isArray(parsed.languages)
+          ? parsed.languages.map((x) => String(x).trim().toLowerCase()).filter(Boolean)
+          : [],
+        education: Array.isArray(parsed.education)
+          ? parsed.education.map((x) => String(x).trim().toLowerCase()).filter(Boolean)
+          : [],
+        industries: Array.isArray(parsed.industries)
+          ? parsed.industries.map((x) => String(x).trim().toLowerCase()).filter(Boolean)
+          : [],
+        locations: Array.isArray(parsed.locations)
+          ? parsed.locations.map((x) => String(x).trim().toLowerCase()).filter(Boolean)
+          : [],
         years_experience_required: safeNumber(parsed.years_experience_required),
         seniority: normalizeSingle(parsed.seniority),
         employment_type: normalizeSingle(parsed.employment_type),
+
         parse_status: "completed",
-        notes: null,
+        notes: null
       };
 
       const { data, error: saveError } = await supabase
