@@ -23,6 +23,36 @@ async function protectAdminPage() {
   return true;
 }
 
+function wireModelProviderSync() {
+  const cvProvider = document.getElementById("cv_parser_provider");
+  const cvModel = document.getElementById("cv_parser_model_name");
+
+  const jobProvider = document.getElementById("parser_provider");
+  const jobModel = document.getElementById("parser_model_name");
+
+  function syncProvider(modelEl, providerEl) {
+    if (!modelEl || !providerEl) return;
+
+    const value = modelEl.value || "";
+
+    if (value === "mistral-small-latest") {
+      providerEl.value = "mistral";
+    } else {
+      providerEl.value = "openrouter";
+    }
+  }
+
+  if (cvModel && cvProvider) {
+    cvModel.addEventListener("change", () => syncProvider(cvModel, cvProvider));
+    syncProvider(cvModel, cvProvider);
+  }
+
+  if (jobModel && jobProvider) {
+    jobModel.addEventListener("change", () => syncProvider(jobModel, jobProvider));
+    syncProvider(jobModel, jobProvider);
+  }
+}
+
 function normalizeList(value) {
   return [
     ...new Set(
@@ -543,6 +573,7 @@ async function initAdmin() {
   wireTabs();
   wireLogout();
   wireRoleExperiencePreview();
+  wireModelProviderSync();
   wireCvForm();
   wireCvParserForm();
   wireJobForm();
