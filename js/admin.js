@@ -1,4 +1,4 @@
-import { supabase } from "./supabaseClient.js";
+import { supabase } from "./js/supabaseClient.js";
 
 const BASE_PATH = "/job-prompt-thesis";
 const tabs = document.querySelectorAll(".tab-btn[data-tab]");
