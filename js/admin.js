@@ -502,7 +502,16 @@ function wireCvParserForm() {
       console.log("parse-cv-pdf-admin response:", response.status, parseData);
 
       if (!response.ok) {
-        throw new Error(parseData?.error || `Function returned ${response.status}`);
+        console.error("CV parser full error response:", parseData);
+      
+        const detailText =
+          parseData?.details?.message ||
+          parseData?.details?.raw ||
+          JSON.stringify(parseData?.details || parseData, null, 2);
+      
+        throw new Error(
+          `${parseData?.error || `Function returned ${response.status}`}\n${detailText}`
+        );
       }
 
       previewEl.textContent = JSON.stringify(parseData?.parse_payload || parseData, null, 2);
@@ -529,7 +538,7 @@ function wireCvParserForm() {
         "CV PDF parsed and saved successfully. Temporary uploaded CV file deleted.";
     } catch (err) {
       console.error("CV parser error:", err);
-      statusEl.textContent = `Error: ${err.message}`;
+      statusEl.textContent = `Error: ${err.message || err}`;
     } finally {
       await deleteTempFile(tempFilePath);
     }
