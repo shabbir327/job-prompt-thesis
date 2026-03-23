@@ -275,7 +275,7 @@ function wireParserForm() {
       if (!file) throw new Error("Please select a PDF.");
 
       const modelName =
-        document.getElementById("parser_model_name").value.trim() || "mistral";
+        document.getElementById("parser_model_name").value.trim() || "mistral-small-latest";
       const promptVersion =
         document.getElementById("parser_prompt_version").value.trim() || "v1";
 
