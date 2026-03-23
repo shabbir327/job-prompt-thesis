@@ -4,117 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>JPS Admin</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      background: #f3f4f6;
-      color: #111827;
-    }
-    header {
-      background: #111827;
-      color: white;
-      padding: 16px 24px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .container {
-      max-width: 1100px;
-      margin: 24px auto;
-      padding: 0 16px;
-    }
-    .tabs {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-    }
-    .tab-btn {
-      padding: 10px 14px;
-      border: none;
-      border-radius: 10px;
-      background: #d1d5db;
-      cursor: pointer;
-    }
-    .tab-btn.active {
-      background: #2563eb;
-      color: white;
-    }
-    .panel {
-      display: none;
-      background: white;
-      padding: 20px;
-      border-radius: 16px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-    }
-    .panel.active {
-      display: block;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 14px;
-    }
-    .full {
-      grid-column: 1 / -1;
-    }
-    label {
-      display: block;
-      font-size: 14px;
-      margin-bottom: 6px;
-      font-weight: 600;
-    }
-    input, textarea, select {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #cbd5e1;
-      border-radius: 10px;
-      box-sizing: border-box;
-      font: inherit;
-    }
-    textarea {
-      min-height: 110px;
-      resize: vertical;
-    }
-    button.primary {
-      margin-top: 16px;
-      padding: 12px 18px;
-      border: none;
-      border-radius: 10px;
-      background: #2563eb;
-      color: white;
-      cursor: pointer;
-    }
-    .status {
-      margin-top: 12px;
-      font-size: 14px;
-      white-space: pre-wrap;
-    }
-    .preview {
-      margin-top: 10px;
-      padding: 14px;
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      white-space: pre-wrap;
-      font-family: monospace;
-      min-height: 48px;
-    }
-    .hint {
-      font-size: 13px;
-      color: #475569;
-      margin-top: 4px;
-    }
-    @media (max-width: 800px) {
-      .grid {
-        grid-template-columns: 1fr;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="./css/admin.css" />
 </head>
 <body>
-  <header>
+  <header class="admin-header">
     <div><strong>JPS Admin Workspace</strong></div>
     <button id="logoutBtn" type="button" class="tab-btn">Log out</button>
   </header>
@@ -122,7 +15,7 @@
   <div class="container">
     <div class="tabs">
       <button type="button" class="tab-btn active" data-tab="cvPanel">Manual CV Annotation</button>
-      <button type="button" class="admin-tab-btn" data-tab="cv-parser">LLM CV PDF Parser</button>
+      <button type="button" class="tab-btn" data-tab="cvParserPanel">LLM CV PDF Parser</button>
       <button type="button" class="tab-btn" data-tab="jobPanel">Manual Job Annotation</button>
       <button type="button" class="tab-btn" data-tab="parserPanel">LLM Job PDF Parser</button>
     </div>
@@ -219,6 +112,48 @@
       <div id="cvStatus" class="status"></div>
     </section>
 
+    <section id="cvParserPanel" class="panel">
+      <h2>LLM CV PDF Parser</h2>
+      <p class="hint">
+        GDPR-safe mode: uploaded CV is used only for parsing and is deleted immediately after parsing.
+        No raw CV PDF URL or unredacted text is stored.
+      </p>
+
+      <div class="grid">
+        <div class="full">
+          <label for="cvPdfFile">Upload CV PDF</label>
+          <input id="cvPdfFile" type="file" accept="application/pdf" />
+        </div>
+
+        <div>
+          <label for="cv_parser_model_name">Model Name</label>
+          <input id="cv_parser_model_name" value="mistral-small-latest" />
+        </div>
+
+        <div>
+          <label for="cv_parser_prompt_version">Prompt Version</label>
+          <input id="cv_parser_prompt_version" value="cv_admin_v1" />
+        </div>
+
+        <div>
+          <label for="cv_parser_candidate_ref">Candidate Ref (optional)</label>
+          <input id="cv_parser_candidate_ref" placeholder="internal_eval_candidate_001" />
+        </div>
+
+        <div>
+          <label for="cv_parser_test_mode">Test Mode</label>
+          <select id="cv_parser_test_mode">
+            <option value="false">false</option>
+            <option value="true">true</option>
+          </select>
+        </div>
+      </div>
+
+      <button id="parseCvPdfBtn" type="button" class="primary">Parse CV PDF</button>
+      <div id="cvParserStatus" class="status"></div>
+      <div id="cvParserPreview" class="preview"></div>
+    </section>
+
     <section id="jobPanel" class="panel">
       <h2>Manual Job Annotation</h2>
       <div class="grid">
@@ -262,7 +197,7 @@
             <option value="senior">senior</option>
           </select>
         </div>
- 
+
         <div>
           <label for="job_normalized_roles">Normalized Roles</label>
           <textarea id="job_normalized_roles"></textarea>
