@@ -5,7 +5,6 @@ const SUPABASE_FUNCTIONS_BASE = "https://vjwcpzprgqzbjmwjrfrc.supabase.co/functi
 
 async function protectAdminPage() {
   const { data, error } = await supabase.auth.getSession();
-  console.log("admin page session check:", { data, error });
 
   if (error) {
     console.error("Session error:", error);
@@ -14,43 +13,11 @@ async function protectAdminPage() {
   }
 
   if (!data?.session) {
-    console.warn("No active session found on admin page");
     window.location.href = `${BASE_PATH}/admin-login.html`;
     return false;
   }
 
-  console.log("Admin session OK:", data.session.user);
   return true;
-}
-
-function wireModelProviderSync() {
-  const cvProvider = document.getElementById("cv_parser_provider");
-  const cvModel = document.getElementById("cv_parser_model_name");
-
-  const jobProvider = document.getElementById("parser_provider");
-  const jobModel = document.getElementById("parser_model_name");
-
-  function syncProvider(modelEl, providerEl) {
-    if (!modelEl || !providerEl) return;
-
-    const value = modelEl.value || "";
-
-    if (value === "mistral-small-latest") {
-      providerEl.value = "mistral";
-    } else {
-      providerEl.value = "openrouter";
-    }
-  }
-
-  if (cvModel && cvProvider) {
-    cvModel.addEventListener("change", () => syncProvider(cvModel, cvProvider));
-    syncProvider(cvModel, cvProvider);
-  }
-
-  if (jobModel && jobProvider) {
-    jobModel.addEventListener("change", () => syncProvider(jobModel, jobProvider));
-    syncProvider(jobModel, jobProvider);
-  }
 }
 
 function normalizeList(value) {
@@ -96,7 +63,6 @@ function parseRoleExperienceText(value) {
 
     const role = match[1].trim().toLowerCase();
     const years = Number(match[2]);
-
     parsed.push({ role, years });
   }
 
@@ -181,6 +147,35 @@ function wireRoleExperiencePreview() {
 
   input.addEventListener("input", update);
   update();
+}
+
+function wireModelProviderSync() {
+  const cvProvider = document.getElementById("cv_parser_provider");
+  const cvModel = document.getElementById("cv_parser_model_name");
+
+  const jobProvider = document.getElementById("parser_provider");
+  const jobModel = document.getElementById("parser_model_name");
+
+  function syncProvider(modelEl, providerEl) {
+    if (!modelEl || !providerEl) return;
+    const value = modelEl.value || "";
+
+    if (value === "mistral-small-latest") {
+      providerEl.value = "mistral";
+    } else {
+      providerEl.value = "openrouter";
+    }
+  }
+
+  if (cvModel && cvProvider) {
+    cvModel.addEventListener("change", () => syncProvider(cvModel, cvProvider));
+    syncProvider(cvModel, cvProvider);
+  }
+
+  if (jobModel && jobProvider) {
+    jobModel.addEventListener("change", () => syncProvider(jobModel, jobProvider));
+    syncProvider(jobModel, jobProvider);
+  }
 }
 
 function wireCvForm() {
@@ -419,7 +414,6 @@ function wireParserForm() {
         document.getElementById("parser_prompt_version").value.trim() || "v1";
 
       const token = await getSessionToken();
-
       const uploadData = await uploadTempPdfAndGetSignedUrl(file, "job-pdfs");
       tempFilePath = uploadData.filePath;
 
@@ -503,7 +497,6 @@ function wireCvParserForm() {
         document.getElementById("cv_parser_test_mode").value === "true";
 
       const token = await getSessionToken();
-
       const uploadData = await uploadTempPdfAndGetSignedUrl(file, "cv-pdfs-temp");
       tempFilePath = uploadData.filePath;
 
