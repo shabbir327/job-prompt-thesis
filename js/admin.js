@@ -328,7 +328,7 @@ function buildJobParsePayload(file, provider, modelName, promptVersion, parseDat
     provider,
     model_name: modelName,
     prompt_version: promptVersion,
-    prompt_jobid: jobid,
+    jobid: jobid || null,
     raw_extracted_text: parseData?.raw_extracted_text || null,
     parsed_output: parsed,
 
