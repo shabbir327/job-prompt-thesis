@@ -328,6 +328,7 @@ function buildJobParsePayload(file, provider, modelName, promptVersion, parseDat
     provider,
     model_name: modelName,
     prompt_version: promptVersion,
+    prompt_jobid: jobid,
     raw_extracted_text: parseData?.raw_extracted_text || null,
     parsed_output: parsed,
 
@@ -412,6 +413,8 @@ function wireParserForm() {
         document.getElementById("parser_model_name").value.trim() || "mistral-small-latest";
       const promptVersion =
         document.getElementById("parser_prompt_version").value.trim() || "v1";
+     const jobid =
+        document.getElementById("parser_jobid").value.trim() || "000";
 
       const token = await getSessionToken();
       const uploadData = await uploadTempPdfAndGetSignedUrl(file, "job-pdfs");
@@ -427,7 +430,8 @@ function wireParserForm() {
           pdf_url: uploadData.signedUrl,
           provider,
           model_name: modelName,
-          prompt_version: promptVersion
+          prompt_version: promptVersion,
+          prompt_jobid: jobid
         })
       });
 
@@ -448,7 +452,7 @@ function wireParserForm() {
       const parsed = parseData?.parsed_output || {};
       previewEl.textContent = JSON.stringify(parsed, null, 2);
 
-      const payload = buildJobParsePayload(file, provider, modelName, promptVersion, parseData);
+      const payload = buildJobParsePayload(file, provider, modelName, promptVersion,jobid, parseData);
 
       const { error: saveError } = await supabase
         .from("llm_job_parses")
