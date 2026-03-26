@@ -431,7 +431,7 @@ function wireParserForm() {
           provider,
           model_name: modelName,
           prompt_version: promptVersion,
-          prompt_jobid: jobid
+          jobid
         })
       });
 
