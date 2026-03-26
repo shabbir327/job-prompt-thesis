@@ -5,7 +5,7 @@ const SUPABASE_FUNCTIONS_BASE = "https://vjwcpzprgqzbjmwjrfrc.supabase.co/functi
 
 async function protectAdminPage() {
   const { data, error } = await supabase.auth.getSession();
-
+ 
   if (error) {
     console.error("Session error:", error);
     window.location.href = `${BASE_PATH}/admin-login.html`;
