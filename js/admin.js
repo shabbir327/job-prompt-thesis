@@ -318,7 +318,7 @@ async function deleteTempFile(filePath) {
   }
 }
 
-function buildJobParsePayload(file, provider, modelName, promptVersion, parseData) {
+function buildJobParsePayload(file, provider, modelName, promptVersion, jobid, parseData) {
   const parsed = parseData?.parsed_output || {};
 
   return {
