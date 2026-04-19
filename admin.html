@@ -157,37 +157,30 @@
     <!-- CV PARSER -->
     <section id="cvParserPanel" class="panel">
       <div class="panel-head">
-        <h2>LLM CV PDF Parser</h2>
-        <p>GDPR-safe mode: uploaded CV is used temporarily, parsed, then deleted.</p>
+        <h2>LLM CV PDF Parser (Batch Mode)</h2>
+        <p>Upload one or many CV PDFs and parse with one model or all models.</p>
       </div>
 
       <div class="grid">
         <div class="card-block full">
           <h3>Upload</h3>
           <div class="field">
-            <label for="cvPdfFile">Upload CV PDF</label>
-            <input id="cvPdfFile" type="file" accept="application/pdf" />
+            <label for="cvPdfFile">Upload CV PDFs</label>
+            <input id="cvPdfFile" type="file" accept="application/pdf" multiple />
+            <div class="hint">You can upload multiple PDFs. Files are uploaded temporarily, parsed, then deleted.</div>
           </div>
         </div>
 
         <div class="card-block">
-          <h3>Model Settings</h3>
+          <h3>Model Selection</h3>
 
           <div class="field">
-            <label for="cv_parser_provider">Provider</label>
-            <select id="cv_parser_provider">
-              <option value="mistral">mistral</option>
-              <option value="openrouter" selected>openrouter</option>
-            </select>
-          </div>
-
-          <div class="field">
-            <label for="cv_parser_model_name">Model Name</label>
-            <select id="cv_parser_model_name">
-              <option value="mistralai/mistral-small-3.1-24b-instruct" selected>Mistral Small 3.1 24B Instruct</option>
-              <option value="meta-llama/llama-3.1-8b-instruct">Llama 3.1 8B Instruct</option>
-              <option value="google/gemma-3-12b-it">Gemma 3 12B IT</option>
-              <option value="mistral-small-latest">Mistral Direct API</option>
+            <label for="cv_parser_mode">Mode</label>
+            <select id="cv_parser_mode">
+              <option value="mistral">Mistral only</option>
+              <option value="llama">Llama only</option>
+              <option value="gemma">Gemma only</option>
+              <option value="all" selected>All models</option>
             </select>
           </div>
 
@@ -215,7 +208,7 @@
         </div>
       </div>
 
-      <button id="parseCvPdfBtn" type="button" class="primary">Parse CV PDF</button>
+      <button id="parseCvPdfBtn" type="button" class="primary">Parse CV PDFs (Batch)</button>
       <div id="cvParserStatus" class="status"></div>
       <div id="cvParserPreview" class="preview"></div>
     </section>
@@ -367,37 +360,30 @@
     <!-- JOB PARSER -->
     <section id="parserPanel" class="panel">
       <div class="panel-head">
-        <h2>LLM Job PDF Parser</h2>
-        <p>Upload a job PDF, parse it, preview results, and save to the evaluation table.</p>
+        <h2>LLM Job PDF Parser (Batch Mode)</h2>
+        <p>Upload one or many Job PDFs and parse with one model or all models.</p>
       </div>
 
       <div class="grid">
         <div class="card-block full">
           <h3>Upload</h3>
           <div class="field">
-            <label for="jobPdfFile">Upload Job PDF</label>
-            <input id="jobPdfFile" type="file" accept="application/pdf" />
+            <label for="jobPdfFile">Upload Job PDFs</label>
+            <input id="jobPdfFile" type="file" accept="application/pdf" multiple />
+            <div class="hint">You can upload multiple PDFs.</div>
           </div>
         </div>
 
         <div class="card-block">
-          <h3>Model Settings</h3>
+          <h3>Model Selection</h3>
 
           <div class="field">
-            <label for="parser_provider">Provider</label>
-            <select id="parser_provider">
-              <option value="mistral">mistral</option>
-              <option value="openrouter" selected>openrouter</option>
-            </select>
-          </div>
-
-          <div class="field">
-            <label for="parser_model_name">Model Name</label>
-            <select id="parser_model_name">
-              <option value="mistralai/mistral-small-3.1-24b-instruct" selected>Mistral Small 3.1 24B Instruct</option>
-              <option value="meta-llama/llama-3.1-8b-instruct">Llama 3.1 8B Instruct</option>
-              <option value="google/gemma-3-12b-it">Gemma 3 12B IT</option>
-              <option value="mistral-small-latest">Mistral Direct API</option>
+            <label for="parser_mode">Mode</label>
+            <select id="parser_mode">
+              <option value="mistral">Mistral only</option>
+              <option value="llama">Llama only</option>
+              <option value="gemma">Gemma only</option>
+              <option value="all" selected>All models</option>
             </select>
           </div>
 
@@ -408,7 +394,7 @@
         </div>
       </div>
 
-      <button id="parseJobPdfBtn" type="button" class="primary">Parse Job PDF</button>
+      <button id="parseJobPdfBtn" type="button" class="primary">Parse Job PDFs (Batch)</button>
       <div id="parserStatus" class="status"></div>
       <div id="parserPreview" class="preview"></div>
     </section>
