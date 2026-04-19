@@ -20,6 +20,11 @@ async function protectAdminPage() {
   return true;
 }
 
+function normalizeSingleSelectAsArray(value) {
+  const v = String(value || "").trim().toLowerCase();
+  return v ? [v] : [];
+}
+
 function normalizeList(value) {
   return [
     ...new Set(
@@ -196,7 +201,7 @@ function wireCvForm() {
         normalized_roles: normalizeList(document.getElementById("cv_normalized_roles").value),
         skills: normalizeList(document.getElementById("cv_skills").value),
         languages: normalizeList(document.getElementById("cv_languages").value),
-        education: normalizeList(document.getElementById("cv_education").value),
+        education: normalizeSingleSelectAsArray(document.getElementById("cv_education").value),
         industries: normalizeList(document.getElementById("cv_industries").value),
         locations: normalizeList(document.getElementById("cv_locations").value),
         years_experience_total: safeNumber(document.getElementById("cv_years_experience_total").value),
@@ -246,7 +251,7 @@ function wireJobForm() {
         normalized_roles: normalizeList(document.getElementById("job_normalized_roles").value),
         skills: normalizeList(document.getElementById("job_skills").value),
         languages: normalizeList(document.getElementById("job_languages").value),
-        education: normalizeList(document.getElementById("job_education").value),
+        education: normalizeSingleSelectAsArray(document.getElementById("job_education").value),
         industries: normalizeList(document.getElementById("job_industries").value),
         years_experience_required: safeNumber(document.getElementById("job_years_experience_required").value),
         seniority: normalizeSingle(document.getElementById("job_seniority").value),
