@@ -12,24 +12,12 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
-}
-
-.admin-brand {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.admin-sub {
-  font-size: 13px;
-  color: #cbd5e1;
 }
 
 .container {
-  max-width: 1200px;
+  max-width: 1100px;
   margin: 24px auto;
-  padding: 0 16px 40px;
+  padding: 0 16px;
 }
 
 .tabs {
@@ -55,56 +43,23 @@ body {
 .panel {
   display: none;
   background: white;
-  padding: 22px;
-  border-radius: 18px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
+  padding: 20px;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
 .panel.active {
   display: block;
 }
 
-.panel-head {
-  margin-bottom: 18px;
-}
-
-.panel-head h2 {
-  margin: 0 0 6px;
-}
-
-.panel-head p {
-  margin: 0;
-  color: #475569;
-}
-
 .grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  gap: 14px;
 }
 
 .full {
   grid-column: 1 / -1;
-}
-
-.card-block {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 16px;
-}
-
-.card-block h3 {
-  margin: 0 0 14px;
-  font-size: 16px;
-}
-
-.field {
-  margin-bottom: 14px;
-}
-
-.field:last-child {
-  margin-bottom: 0;
 }
 
 label {
@@ -123,7 +78,6 @@ select {
   border-radius: 10px;
   box-sizing: border-box;
   font: inherit;
-  background: white;
 }
 
 textarea {
@@ -132,7 +86,7 @@ textarea {
 }
 
 button.primary {
-  margin-top: 18px;
+  margin-top: 16px;
   padding: 12px 18px;
   border: none;
   border-radius: 10px;
@@ -145,7 +99,6 @@ button.primary {
   margin-top: 12px;
   font-size: 14px;
   white-space: pre-wrap;
-  line-height: 1.5;
 }
 
 .preview {
@@ -166,30 +119,7 @@ button.primary {
   margin-top: 4px;
 }
 
-.check-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.check-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid #cbd5e1;
-  background: white;
-  border-radius: 999px;
-  padding: 8px 12px;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.check-pill input {
-  width: auto;
-  margin: 0;
-}
-
-@media (max-width: 900px) {
+@media (max-width: 800px) {
   .grid {
     grid-template-columns: 1fr;
   }
