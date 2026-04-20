@@ -1,11 +1,26 @@
-import { supabase } from "./supabaseClient.js"; 
- 
+import { supabase } from "./supabaseClient.js";
+
 const BASE_PATH = "/job-prompt-thesis";
 const SUPABASE_FUNCTIONS_BASE = "https://vjwcpzprgqzbjmwjrfrc.supabase.co/functions/v1";
 
+const MODEL_CONFIGS = {
+  mistral: {
+    provider: "mistral",
+    model: "mistral-small-latest"
+  },
+  llama: {
+    provider: "openrouter",
+    model: "meta-llama/llama-3.1-8b-instruct"
+  },
+  gemma: {
+    provider: "openrouter",
+    model: "google/gemma-3-12b-it"
+  }
+};
+
 async function protectAdminPage() {
   const { data, error } = await supabase.auth.getSession();
- 
+
   if (error) {
     console.error("Session error:", error);
     window.location.href = `${BASE_PATH}/admin-login.html`;
@@ -83,6 +98,17 @@ function normalizeParsedArray(arr) {
   return [...new Set(arr.map((x) => String(x || "").trim().toLowerCase()).filter(Boolean))];
 }
 
+function normalizeCheckboxGroup(groupId) {
+  const group = document.getElementById(groupId);
+  if (!group) return [];
+
+  return [...new Set(
+    Array.from(group.querySelectorAll('input[type="checkbox"]:checked'))
+      .map((input) => String(input.value || "").trim().toLowerCase())
+      .filter(Boolean)
+  )];
+}
+
 function validateCvPayload(payload) {
   const errors = [];
   if (!payload.cv_id) errors.push("CV ID is required.");
@@ -149,35 +175,6 @@ function wireRoleExperiencePreview() {
   update();
 }
 
-function wireModelProviderSync() {
-  const cvProvider = document.getElementById("cv_parser_provider");
-  const cvModel = document.getElementById("cv_parser_model_name");
-
-  const jobProvider = document.getElementById("parser_provider");
-  const jobModel = document.getElementById("parser_model_name");
-
-  function syncProvider(modelEl, providerEl) {
-    if (!modelEl || !providerEl) return;
-    const value = modelEl.value || "";
-
-    if (value === "mistral-small-latest") {
-      providerEl.value = "mistral";
-    } else {
-      providerEl.value = "openrouter";
-    }
-  }
-
-  if (cvModel && cvProvider) {
-    cvModel.addEventListener("change", () => syncProvider(cvModel, cvProvider));
-    syncProvider(cvModel, cvProvider);
-  }
-
-  if (jobModel && jobProvider) {
-    jobModel.addEventListener("change", () => syncProvider(jobModel, jobProvider));
-    syncProvider(jobModel, jobProvider);
-  }
-}
-
 function wireCvForm() {
   const saveCvBtn = document.getElementById("saveCvBtn");
   const statusEl = document.getElementById("cvStatus");
@@ -196,7 +193,7 @@ function wireCvForm() {
         normalized_roles: normalizeList(document.getElementById("cv_normalized_roles").value),
         skills: normalizeList(document.getElementById("cv_skills").value),
         languages: normalizeList(document.getElementById("cv_languages").value),
-        education: normalizeList(document.getElementById("cv_education").value),
+        education: normalizeCheckboxGroup("cv_education_group"),
         industries: normalizeList(document.getElementById("cv_industries").value),
         locations: normalizeList(document.getElementById("cv_locations").value),
         years_experience_total: safeNumber(document.getElementById("cv_years_experience_total").value),
@@ -246,7 +243,7 @@ function wireJobForm() {
         normalized_roles: normalizeList(document.getElementById("job_normalized_roles").value),
         skills: normalizeList(document.getElementById("job_skills").value),
         languages: normalizeList(document.getElementById("job_languages").value),
-        education: normalizeList(document.getElementById("job_education").value),
+        education: normalizeCheckboxGroup("job_education_group"),
         industries: normalizeList(document.getElementById("job_industries").value),
         years_experience_required: safeNumber(document.getElementById("job_years_experience_required").value),
         seniority: normalizeSingle(document.getElementById("job_seniority").value),
@@ -318,7 +315,7 @@ async function deleteTempFile(filePath) {
   }
 }
 
-function buildJobParsePayload(file, provider, modelName, promptVersion, jobid, parseData) {
+function buildJobParsePayload(file, provider, modelName, promptVersion, parseData) {
   const parsed = parseData?.parsed_output || {};
 
   return {
@@ -328,7 +325,6 @@ function buildJobParsePayload(file, provider, modelName, promptVersion, jobid, p
     provider,
     model_name: modelName,
     prompt_version: promptVersion,
-    jobid: jobid || null,
     raw_extracted_text: parseData?.raw_extracted_text || null,
     parsed_output: parsed,
 
@@ -389,84 +385,206 @@ function buildCvParsePayload(file, provider, modelName, promptVersion, candidate
   };
 }
 
+function getModelsToRun(mode) {
+  if (mode === "all") return ["mistral", "llama", "gemma"];
+  return [mode];
+}
+
+function appendStatusLine(el, text) {
+  if (!el) return;
+  el.textContent += `${el.textContent ? "\n" : ""}${text}`;
+}
+
+async function wireBatchJobParserRun(file, modelsToRun, promptVersion, token, statusEl, previewEl) {
+  let tempFilePath = null;
+  let successCount = 0;
+
+  try {
+    appendStatusLine(statusEl, `Uploading ${file.name}...`);
+    const uploadData = await uploadTempPdfAndGetSignedUrl(file, "job-pdfs-temp");
+    tempFilePath = uploadData.filePath;
+
+    for (const modelKey of modelsToRun) {
+      const config = MODEL_CONFIGS[modelKey];
+      appendStatusLine(statusEl, `→ ${file.name} with ${modelKey}`);
+
+      try {
+        const response = await fetch(`${SUPABASE_FUNCTIONS_BASE}/parse-job-pdf`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            pdf_url: uploadData.signedUrl,
+            provider: config.provider,
+            model_name: config.model,
+            prompt_version: promptVersion
+          })
+        });
+
+        const parseData = await response.json();
+
+        if (!response.ok) {
+          console.error("parse-job-pdf failed:", parseData);
+          appendStatusLine(statusEl, `❌ ${modelKey} failed for ${file.name}`);
+          continue;
+        }
+
+        const parsed = parseData?.parsed_output || {};
+        previewEl.textContent = JSON.stringify(parsed, null, 2);
+
+        const payload = buildJobParsePayload(
+          file,
+          config.provider,
+          config.model,
+          promptVersion,
+          parseData
+        );
+
+        const { error: saveError } = await supabase
+          .from("llm_job_parses")
+          .insert([payload]);
+
+        if (saveError) {
+          console.error("Job parse save error:", saveError);
+          appendStatusLine(statusEl, `⚠️ save failed for ${modelKey} / ${file.name}`);
+          continue;
+        }
+
+        appendStatusLine(statusEl, `✅ saved ${modelKey} / ${file.name}`);
+        successCount += 1;
+
+        await new Promise((r) => setTimeout(r, 1200));
+      } catch (err) {
+        console.error(`Job parse error for ${modelKey}`, err);
+        appendStatusLine(statusEl, `❌ error for ${modelKey} / ${file.name}`);
+      }
+    }
+  } finally {
+    await deleteTempFile(tempFilePath);
+  }
+
+  return successCount;
+}
+
+async function wireBatchCvParserRun(file, modelsToRun, promptVersion, candidateRef, testMode, token, statusEl, previewEl) {
+  let tempFilePath = null;
+  let successCount = 0;
+
+  try {
+    appendStatusLine(statusEl, `Uploading ${file.name}...`);
+    const uploadData = await uploadTempPdfAndGetSignedUrl(file, "cv-pdfs-temp");
+    tempFilePath = uploadData.filePath;
+
+    for (const modelKey of modelsToRun) {
+      const config = MODEL_CONFIGS[modelKey];
+      appendStatusLine(statusEl, `→ ${file.name} with ${modelKey}`);
+
+      try {
+        const response = await fetch(`${SUPABASE_FUNCTIONS_BASE}/parse-cv-pdf-admin`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            pdf_url: uploadData.signedUrl,
+            provider: config.provider,
+            model_name: config.model,
+            prompt_version: promptVersion,
+            test_mode: testMode
+          })
+        });
+
+        const parseData = await response.json();
+
+        if (!response.ok) {
+          console.error("parse-cv-pdf-admin failed:", parseData);
+          appendStatusLine(statusEl, `❌ ${modelKey} failed for ${file.name}`);
+          continue;
+        }
+
+        previewEl.textContent = JSON.stringify(parseData?.parse_payload || parseData, null, 2);
+
+        const payload = buildCvParsePayload(
+          file,
+          config.provider,
+          config.model,
+          promptVersion,
+          candidateRef,
+          testMode,
+          parseData
+        );
+
+        const { error: saveError } = await supabase
+          .from("llm_cv_parses")
+          .insert([payload]);
+
+        if (saveError) {
+          console.error("CV parse save error:", saveError);
+          appendStatusLine(statusEl, `⚠️ save failed for ${modelKey} / ${file.name}`);
+          continue;
+        }
+
+        appendStatusLine(statusEl, `✅ saved ${modelKey} / ${file.name}`);
+        successCount += 1;
+
+        await new Promise((r) => setTimeout(r, 1200));
+      } catch (err) {
+        console.error(`CV parse error for ${modelKey}`, err);
+        appendStatusLine(statusEl, `❌ error for ${modelKey} / ${file.name}`);
+      }
+    }
+  } finally {
+    await deleteTempFile(tempFilePath);
+  }
+
+  return successCount;
+}
+
 function wireParserForm() {
   const parseBtn = document.getElementById("parseJobPdfBtn");
   const statusEl = document.getElementById("parserStatus");
   const previewEl = document.getElementById("parserPreview");
   const fileInput = document.getElementById("jobPdfFile");
+  const modeEl = document.getElementById("parser_mode");
+  const promptEl = document.getElementById("parser_prompt_version");
 
-  if (!parseBtn || !statusEl || !previewEl || !fileInput) return;
+  if (!parseBtn || !statusEl || !previewEl || !fileInput || !modeEl || !promptEl) return;
 
   parseBtn.addEventListener("click", async () => {
-    statusEl.textContent = "Parsing job PDF...";
+    statusEl.textContent = "";
     previewEl.textContent = "";
 
-    let tempFilePath = null;
-
     try {
-      const file = fileInput.files?.[0];
-      if (!file) throw new Error("Please select a PDF.");
+      const files = Array.from(fileInput.files || []);
+      if (!files.length) throw new Error("Please select at least one Job PDF.");
 
-      const provider =
-        document.getElementById("parser_provider").value.trim() || "mistral";
-      const modelName =
-        document.getElementById("parser_model_name").value.trim() || "mistral-small-latest";
-      const promptVersion =
-        document.getElementById("parser_prompt_version").value.trim() || "v1";
-     const jobid =
-        document.getElementById("parser_jobid").value.trim() || "000";
-
+      const mode = modeEl.value;
+      const promptVersion = promptEl.value.trim() || "v1";
+      const modelsToRun = getModelsToRun(mode);
       const token = await getSessionToken();
-      const uploadData = await uploadTempPdfAndGetSignedUrl(file, "job-pdfs");
-      tempFilePath = uploadData.filePath;
 
-      const response = await fetch(`${SUPABASE_FUNCTIONS_BASE}/parse-job-pdf`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          pdf_url: uploadData.signedUrl,
-          provider,
-          model_name: modelName,
-          prompt_version: promptVersion,
-          jobid
-        })
-      });
+      let totalSuccess = 0;
 
-      const parseData = await response.json();
-      console.log("parse-job-pdf response:", response.status, parseData);
+      appendStatusLine(statusEl, `Starting batch job parsing for ${files.length} file(s)...`);
 
-      if (!response.ok) {
-        const detailText =
-          parseData?.details?.message ||
-          parseData?.details?.raw ||
-          JSON.stringify(parseData?.details || parseData, null, 2);
-
-        throw new Error(
-          `${parseData?.error || `Function returned ${response.status}`}\n${detailText}`
+      for (const file of files) {
+        totalSuccess += await wireBatchJobParserRun(
+          file,
+          modelsToRun,
+          promptVersion,
+          token,
+          statusEl,
+          previewEl
         );
       }
 
-      const parsed = parseData?.parsed_output || {};
-      previewEl.textContent = JSON.stringify(parsed, null, 2);
-
-      const payload = buildJobParsePayload(file, provider, modelName, promptVersion,jobid, parseData);
-
-      const { error: saveError } = await supabase
-        .from("llm_job_parses")
-        .insert([payload])
-        .select("parse_id");
-
-      if (saveError) throw saveError;
-
-      statusEl.textContent = "Job PDF parsed and saved successfully.";
+      appendStatusLine(statusEl, `🎉 Batch complete. Saved ${totalSuccess} row(s).`);
     } catch (err) {
-      console.error("Job parser error:", err);
+      console.error("Batch job parser error:", err);
       statusEl.textContent = `Error: ${err.message || err}`;
-    } finally {
-      await deleteTempFile(tempFilePath);
     }
   });
 }
@@ -476,89 +594,49 @@ function wireCvParserForm() {
   const statusEl = document.getElementById("cvParserStatus");
   const previewEl = document.getElementById("cvParserPreview");
   const fileInput = document.getElementById("cvPdfFile");
+  const modeEl = document.getElementById("cv_parser_mode");
+  const promptEl = document.getElementById("cv_parser_prompt_version");
+  const candidateRefEl = document.getElementById("cv_parser_candidate_ref");
+  const testModeEl = document.getElementById("cv_parser_test_mode");
 
-  if (!parseBtn || !statusEl || !previewEl || !fileInput) return;
+  if (!parseBtn || !statusEl || !previewEl || !fileInput || !modeEl || !promptEl || !candidateRefEl || !testModeEl) return;
 
   parseBtn.addEventListener("click", async () => {
-    statusEl.textContent = "Parsing CV in GDPR-safe mode...";
+    statusEl.textContent = "";
     previewEl.textContent = "";
 
-    let tempFilePath = null;
-
     try {
-      const file = fileInput.files?.[0];
-      if (!file) throw new Error("Please select a CV PDF.");
+      const files = Array.from(fileInput.files || []);
+      if (!files.length) throw new Error("Please select at least one CV PDF.");
 
-      const provider =
-        document.getElementById("cv_parser_provider").value.trim() || "mistral";
-      const modelName =
-        document.getElementById("cv_parser_model_name").value.trim() || "mistral-small-latest";
-      const promptVersion =
-        document.getElementById("cv_parser_prompt_version").value.trim() || "cv_admin_v1";
-      const candidateRef =
-        document.getElementById("cv_parser_candidate_ref").value.trim() || null;
-      const testMode =
-        document.getElementById("cv_parser_test_mode").value === "true";
-
+      const mode = modeEl.value;
+      const promptVersion = promptEl.value.trim() || "cv_admin_v1";
+      const candidateRef = candidateRefEl.value.trim() || null;
+      const testMode = testModeEl.value === "true";
+      const modelsToRun = getModelsToRun(mode);
       const token = await getSessionToken();
-      const uploadData = await uploadTempPdfAndGetSignedUrl(file, "cv-pdfs-temp");
-      tempFilePath = uploadData.filePath;
 
-      const response = await fetch(`${SUPABASE_FUNCTIONS_BASE}/parse-cv-pdf-admin`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          pdf_url: uploadData.signedUrl,
-          provider,
-          model_name: modelName,
-          prompt_version: promptVersion,
-          test_mode: testMode
-        })
-      });
+      let totalSuccess = 0;
 
-      const parseData = await response.json();
-      console.log("parse-cv-pdf-admin response:", response.status, parseData);
+      appendStatusLine(statusEl, `Starting batch CV parsing for ${files.length} file(s)...`);
 
-      if (!response.ok) {
-        const detailText =
-          parseData?.details?.message ||
-          parseData?.details?.raw ||
-          JSON.stringify(parseData?.details || parseData, null, 2);
-
-        throw new Error(
-          `${parseData?.error || `Function returned ${response.status}`}\n${detailText}`
+      for (const file of files) {
+        totalSuccess += await wireBatchCvParserRun(
+          file,
+          modelsToRun,
+          promptVersion,
+          candidateRef,
+          testMode,
+          token,
+          statusEl,
+          previewEl
         );
       }
 
-      previewEl.textContent = JSON.stringify(parseData?.parse_payload || parseData, null, 2);
-
-      const payload = buildCvParsePayload(
-        file,
-        provider,
-        modelName,
-        promptVersion,
-        candidateRef,
-        testMode,
-        parseData
-      );
-
-      const { error: saveError } = await supabase
-        .from("llm_cv_parses")
-        .insert([payload])
-        .select("parse_id");
-
-      if (saveError) throw saveError;
-
-      statusEl.textContent =
-        "CV PDF parsed and saved successfully. Temporary uploaded CV file deleted.";
+      appendStatusLine(statusEl, `🎉 Batch complete. Saved ${totalSuccess} row(s).`);
     } catch (err) {
-      console.error("CV parser error:", err);
+      console.error("Batch CV parser error:", err);
       statusEl.textContent = `Error: ${err.message || err}`;
-    } finally {
-      await deleteTempFile(tempFilePath);
     }
   });
 }
@@ -570,7 +648,6 @@ async function initAdmin() {
   wireTabs();
   wireLogout();
   wireRoleExperiencePreview();
-  wireModelProviderSync();
   wireCvForm();
   wireCvParserForm();
   wireJobForm();
