@@ -1,310 +1,405 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Job Prompt Studio</title>
-  <meta
-    name="description"
-    content="Job Prompt Studio (JPS) is an academic research prototype for AI-based job recommendation and CV understanding."
-  />
-  <link rel="stylesheet" href="./css/styles.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JPS Admin</title>
+  <link rel="stylesheet" href="./css/admin.css" />
 </head>
-
 <body>
-  <div class="wrap">
-    <header>
-      <div class="brand">
-        <div class="logo" aria-hidden="true"></div>
-        <h1>Job Prompt Studio</h1>
-      </div>
-      <div class="pill" id="statusPill">Thesis Prototype v1</div>
-    </header>
+  <header class="admin-header">
+    <div class="admin-brand">
+      <strong>JPS Admin Workspace</strong>
+      <span class="admin-sub">Annotation, parsing, and evaluation preparation</span>
+    </div>
+    <button id="logoutBtn" type="button" class="tab-btn">Log out</button>
+  </header>
 
-    <section class="hero">
-      <div class="panel">
-        <div class="top">
-          <p class="kicker">Academic research prototype</p>
-          <h2 class="title">Find career directions from your prompt and CV.</h2>
+  <div class="container">
+    <div class="tabs">
+      <button type="button" class="tab-btn active" data-tab="cvPanel">Manual CV Annotation</button>
+      <button type="button" class="tab-btn" data-tab="cvParserPanel">LLM CV PDF Parser</button>
+      <button type="button" class="tab-btn" data-tab="jobPanel">Manual Job Annotation</button>
+      <button type="button" class="tab-btn" data-tab="parserPanel">LLM Job PDF Parser</button>
+    </div>
 
-          <p class="subtitle subtitleWide">
-            <strong>Job Prompt Studio (JPS)</strong> is a thesis prototype from the
-            <strong>University of Southern Denmark (SDU)</strong> for research on
-            AI-based job recommendation and CV understanding.
-          </p>
-
-          <p class="subtitle subtitleWide">
-            You can describe the role you want, upload your PDF CV, or use both together.
-            Using both usually gives the best recommendation quality.
-          </p>
-
-          <p class="subtitle subtitleWide supportNote">
-            <strong>Current coverage:</strong> job search recommendations currently support
-            <strong>Denmark</strong> only.
-          </p>
-        </div>
-
-        <form id="jobForm" autocomplete="on">
-          <div class="field">
-            <label for="role">1) What job are you looking for?</label>
-            <input
-              id="role"
-              name="role"
-              type="text"
-              placeholder="e.g., Data Scientist, Software Engineer, HR Specialist"
-              maxlength="120"
-            />
-          </div>
-
-          <div class="field">
-            <label for="experience">2) Past experience & interests</label>
-            <textarea
-              id="experience"
-              name="experience"
-              placeholder="Write a few lines about your experience, strengths, tools, industries, and what kind of work excites you."
-              maxlength="1200"
-            ></textarea>
-          </div>
-
-          <div class="grid2">
-            <div class="field">
-              <label for="education">3) Education</label>
-              <input
-                id="education"
-                name="education"
-                type="text"
-                placeholder="e.g., MSc Data Science, BSc Computer Science"
-                maxlength="200"
-              />
-            </div>
-
-            <div class="field">
-              <label for="yearsExperience">4) Years of experience</label>
-              <input
-                id="yearsExperience"
-                name="yearsExperience"
-                type="number"
-                min="0"
-                max="60"
-                step="0.5"
-                placeholder="e.g., 3"
-              />
-            </div>
-          </div>
-
-          <div class="field">
-            <label for="skills">5) Skills</label>
-            <input
-              id="skills"
-              name="skills"
-              type="text"
-              placeholder="e.g., Python, SQL, Power BI, Project Management"
-              maxlength="400"
-            />
-            <p class="fieldNote">Separate skills with commas.</p>
-          </div>
-
-          <div class="field">
-            <label for="languages">6) Languages</label>
-            <input
-              id="languages"
-              name="languages"
-              type="text"
-              placeholder="e.g., English, Danish, German"
-              maxlength="200"
-            />
-            <p class="fieldNote">Separate languages with commas.</p>
-          </div>
-
-          <div class="grid2">
-            <div class="field">
-              <label for="jobCountry">7) Job country</label>
-              <select id="jobCountry" name="jobCountry" class="styledSelect">
-                <option value="">Select country</option>
-                <option value="DK" selected>Denmark</option>
-              </select>
-              <p class="fieldNote">
-                The system currently supports job search in <strong>Denmark</strong> only.
-              </p>
-            </div>
-
-            <div class="field">
-              <label for="location">8) Preferred job location</label>
-              <select id="location" name="location" class="styledSelect">
-                <option value="">Select location</option>
-              </select>
-              <p class="fieldNote">
-                Only supported cities and regions are shown for the selected country.
-              </p>
-            </div>
-          </div>
-
-          <div class="field">
-            <label for="cvFile">9) Upload your CV (optional)</label>
-            <input
-              id="cvFile"
-              name="cvFile"
-              type="file"
-              accept=".pdf,application/pdf"
-            />
-            <p class="fieldNote">
-              Accepted format: PDF only. If uploaded, the CV will be OCR-processed,
-              privacy-redacted, and parsed together with your input.
-            </p>
-          </div>
-
-          <div class="field uploadInfo">
-            <label>Privacy-aware parsing</label>
-            <p class="fieldNote">
-              Uploaded CVs are processed through OCR and privacy redaction before parsing.
-              Direct identifiers such as name, email, phone number, date of birth,
-              address, and URLs are masked before AI-based extraction.
-            </p>
-          </div>
-
-          <div class="field">
-            <label class="consent">
-              <input id="consent" type="checkbox" required checked />
-              <span>
-                I consent to storing this information for educational and academic research purposes.
-                <span class="consent-sub">
-                  You may withdraw by contacting the research owner.
-                </span>
-              </span>
-            </label>
-          </div>
-
-          <div class="actions">
-            <div class="hint">
-              Tip: using both a role description and a CV usually improves recommendation quality.
-            </div>
-
-            <div class="btnRow">
-              <button class="btn" type="button" id="resetBtn">Reset</button>
-              <button class="btn primary" type="submit" id="submitBtn">Get recommendation</button>
-            </div>
-          </div>
-
-          <span class="sr-only" aria-live="polite" id="ariaLive"></span>
-        </form>
+    <!-- CV ANNOTATION -->
+    <section id="cvPanel" class="panel active">
+      <div class="panel-head">
+        <h2>Manual CV Annotation</h2>
+        <p>Create structured ground-truth CV labels for parser evaluation.</p>
       </div>
 
-      <aside class="panel summary" aria-label="Live preview and recommendation results">
-        <div class="top">
-          <p class="kicker">Preview</p>
-          <h2 class="title titleSmall">AI profile insights and job matches.</h2>
-          <p class="subtitle subtitleWide">
-            This preview updates as you type or upload content. Click
-            <b>Get recommendation</b> to save your response, parse your input,
-            and fetch relevant job suggestions.
-          </p>
+      <div class="grid">
+        <div class="card-block">
+          <h3>Identity & Source</h3>
+
+          <div class="field">
+            <label for="cv_id">CV ID</label>
+            <input id="cv_id" />
+          </div>
+
+          <div class="field">
+            <label for="cv_source_ref">Source Ref</label>
+            <input id="cv_source_ref" />
+          </div>
         </div>
 
-        <div class="mini">
-          <div class="card">
-            <h3>Input summary</h3>
-            <p id="previewMode">Prompt and/or CV</p>
+        <div class="card-block">
+          <h3>Role & Seniority</h3>
+
+          <div class="field">
+            <label for="cv_primary_role">Primary Role</label>
+            <input id="cv_primary_role" />
           </div>
 
-          <div class="card">
-            <h3>Role / target</h3>
-            <p id="previewRole">—</p>
+          <div class="field">
+            <label for="cv_seniority">Seniority</label>
+            <select id="cv_seniority">
+              <option value="">Select</option>
+              <option value="junior">junior</option>
+              <option value="mid">mid</option>
+              <option value="senior">senior</option>
+            </select>
           </div>
 
-          <div class="card">
-            <h3>Experience / CV content</h3>
-            <p id="previewExperience">—</p>
+          <div class="field">
+            <label for="cv_normalized_roles">Normalized Roles</label>
+            <textarea id="cv_normalized_roles"></textarea>
+            <div class="hint">Use commas or semicolons.</div>
+          </div>
+        </div>
+
+        <div class="card-block">
+          <h3>Skills & Languages</h3>
+
+          <div class="field">
+            <label for="cv_skills">Skills</label>
+            <textarea id="cv_skills"></textarea>
+            <div class="hint">Use commas or semicolons.</div>
           </div>
 
-          <div class="card">
-            <h3>Structured input</h3>
-            <p id="previewStructured">—</p>
+          <div class="field">
+            <label for="cv_languages">Languages</label>
+            <textarea id="cv_languages"></textarea>
+            <div class="hint">Use commas or semicolons.</div>
           </div>
 
-          <div class="card">
-            <h3>Parsed profile</h3>
-            <p id="parsedHint" class="lockedHint">
-              Submit your input to generate parsed skills, roles, and recommendation signals.
-            </p>
-            <div id="parsedProfile" style="display:none;"></div>
+          <div class="field">
+            <label for="cv_industries">Industries</label>
+            <textarea id="cv_industries"></textarea>
+            <div class="hint">Use commas or semicolons.</div>
           </div>
 
-          <div class="card">
-            <h3>Suggested jobs</h3>
+          <div class="field">
+            <label for="cv_locations">Locations</label>
+            <textarea id="cv_locations"></textarea>
+            <div class="hint">Use commas or semicolons.</div>
+          </div>
+        </div>
 
-            <p id="jobsHint" class="lockedHint">
-              Click <b>Get recommendation</b> to fetch matching jobs.
-            </p>
+        <div class="card-block">
+          <h3>Education & Experience</h3>
 
-            <p id="jobsStatus" class="lockedHint" style="display:none;"></p>
-
-            <div id="jobsSkeleton" class="jobsList" style="display:none;">
-              <div class="skeletonCard"></div>
-              <div class="skeletonCard"></div>
-              <div class="skeletonCard"></div>
+          <div class="field">
+            <label>Education</label>
+            <div id="cv_education_group" class="check-group">
+              <label class="check-pill"><input type="checkbox" value="bachelors" /> <span>bachelors</span></label>
+              <label class="check-pill"><input type="checkbox" value="masters" /> <span>masters</span></label>
+              <label class="check-pill"><input type="checkbox" value="highschool" /> <span>highschool</span></label>
+              <label class="check-pill"><input type="checkbox" value="vocational" /> <span>vocational</span></label>
+              <label class="check-pill"><input type="checkbox" value="professional_certificate" /> <span>professional_certificate</span></label>
+              <label class="check-pill"><input type="checkbox" value="none" /> <span>none</span></label>
             </div>
-
-            <div id="jobsList" class="jobsList" style="display:none;"></div>
-
-            <p class="lockedHint" style="margin-top:10px;">
-              <a
-                id="jobindexAllLink"
-                href="#"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="subLink"
-              >
-                View all results on the source portal →
-              </a>
-            </p>
+            <div class="hint">Select one or more education levels.</div>
           </div>
 
-          <div class="card ratingCard">
-            <h3>Rate these recommendations</h3>
-            <p class="fieldNote">
-              How useful were the recommended jobs?
-            </p>
+          <div class="field">
+            <label for="cv_years_experience_total">Years Experience Total</label>
+            <input id="cv_years_experience_total" type="number" step="0.1" />
+          </div>
 
-            <div class="ratingWrap">
-              <label for="recommendationRating" class="ratingLabel">Rating</label>
-              <select id="recommendationRating" name="recommendationRating" class="styledSelect ratingSelect" disabled>
-                <option value="">Select rating</option>
-                <option value="1">1 - Very poor</option>
-                <option value="2">2 - Poor</option>
-                <option value="3">3 - Neutral</option>
-                <option value="4">4 - Good</option>
-                <option value="5">5 - Excellent</option>
-              </select>
-              <p id="ratingStatus" class="ratingStatus">Rate after recommendations appear.</p>
+          <div class="field">
+            <label for="cv_ambiguity_flag">Ambiguity Flag</label>
+            <select id="cv_ambiguity_flag">
+              <option value="false">false</option>
+              <option value="true">true</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="cv_role_experience">Role Experience</label>
+            <textarea id="cv_role_experience" placeholder="Data Analyst 2 years; Supply Chain Analyst 1 year"></textarea>
+            <div class="hint">Format: Role 2 years; Another Role 1 year</div>
+            <div id="cv_role_experience_preview" class="preview"></div>
+          </div>
+        </div>
+
+        <div class="card-block full">
+          <h3>Source Text & Notes</h3>
+
+          <div class="field">
+            <label for="cv_raw_text">Raw Text</label>
+            <textarea id="cv_raw_text"></textarea>
+          </div>
+
+          <div class="field">
+            <label for="cv_annotation_notes">Notes</label>
+            <textarea id="cv_annotation_notes"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <button id="saveCvBtn" type="button" class="primary">Save CV Annotation</button>
+      <div id="cvStatus" class="status"></div>
+    </section>
+
+    <!-- CV PARSER -->
+    <section id="cvParserPanel" class="panel">
+      <div class="panel-head">
+        <h2>LLM CV PDF Parser (Batch Mode)</h2>
+        <p>Upload one or many CV PDFs and parse with one model or all models.</p>
+      </div>
+
+      <div class="grid">
+        <div class="card-block full">
+          <h3>Upload</h3>
+          <div class="field">
+            <label for="cvPdfFile">Upload CV PDFs</label>
+            <input id="cvPdfFile" type="file" accept="application/pdf" multiple />
+            <div class="hint">You can upload multiple PDFs. Files are uploaded temporarily, parsed, then deleted.</div>
+          </div>
+        </div>
+
+        <div class="card-block">
+          <h3>Model Selection</h3>
+
+          <div class="field">
+            <label for="cv_parser_mode">Mode</label>
+            <select id="cv_parser_mode">
+              <option value="mistral">Mistral only</option>
+              <option value="llama">Llama only</option>
+              <option value="gemma">Gemma only</option>
+              <option value="all" selected>All models</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="cv_parser_prompt_version">Prompt Version</label>
+            <input id="cv_parser_prompt_version" value="cv_admin_v1" />
+          </div>
+        </div>
+
+        <div class="card-block">
+          <h3>Experiment Metadata</h3>
+
+          <div class="field">
+            <label for="cv_parser_candidate_ref">Candidate Ref (optional)</label>
+            <input id="cv_parser_candidate_ref" placeholder="internal_eval_candidate_001" />
+          </div>
+
+          <div class="field">
+            <label for="cv_parser_test_mode">Test Mode</label>
+            <select id="cv_parser_test_mode">
+              <option value="false">false</option>
+              <option value="true">true</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <button id="parseCvPdfBtn" type="button" class="primary">Parse CV PDFs (Batch)</button>
+      <div id="cvParserStatus" class="status"></div>
+      <div id="cvParserPreview" class="preview"></div>
+    </section>
+
+    <!-- JOB ANNOTATION -->
+    <section id="jobPanel" class="panel">
+      <div class="panel-head">
+        <h2>Manual Job Annotation</h2>
+        <p>Create structured ground-truth job labels for parser evaluation.</p>
+      </div>
+
+      <div class="grid">
+        <div class="card-block">
+          <h3>Identity & Source</h3>
+
+          <div class="field">
+            <label for="job_id">Job ID</label>
+            <input id="job_id" />
+          </div>
+
+          <div class="field">
+            <label for="job_url">Job URL</label>
+            <input id="job_url" />
+          </div>
+
+          <div class="field">
+            <label for="job_title">Raw Job Title</label>
+            <input id="job_title" />
+          </div>
+
+          <div class="field">
+            <label for="job_company_name">Company Name</label>
+            <input id="job_company_name" />
+          </div>
+        </div>
+
+        <div class="card-block">
+          <h3>Role & Contract</h3>
+
+          <div class="field">
+            <label for="job_country">Country</label>
+            <input id="job_country" />
+          </div>
+
+          <div class="field">
+            <label for="job_employment_type">Employment Type</label>
+            <input id="job_employment_type" />
+          </div>
+
+          <div class="field">
+            <label for="job_primary_role">Primary Role</label>
+            <input id="job_primary_role" />
+          </div>
+
+          <div class="field">
+            <label for="job_seniority">Seniority</label>
+            <select id="job_seniority">
+              <option value="">Select</option>
+              <option value="junior">junior</option>
+              <option value="mid">mid</option>
+              <option value="senior">senior</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="job_normalized_roles">Normalized Roles</label>
+            <textarea id="job_normalized_roles"></textarea>
+            <div class="hint">Use commas or semicolons.</div>
+          </div>
+        </div>
+
+        <div class="card-block">
+          <h3>Skills & Languages</h3>
+
+          <div class="field">
+            <label for="job_skills">Skills</label>
+            <textarea id="job_skills"></textarea>
+            <div class="hint">Use commas or semicolons.</div>
+          </div>
+
+          <div class="field">
+            <label for="job_languages">Languages</label>
+            <textarea id="job_languages"></textarea>
+            <div class="hint">Use commas or semicolons.</div>
+          </div>
+
+          <div class="field">
+            <label for="job_industries">Industries</label>
+            <textarea id="job_industries"></textarea>
+            <div class="hint">Use commas or semicolons.</div>
+          </div>
+
+          <div class="field">
+            <label for="job_locations">Locations</label>
+            <textarea id="job_locations"></textarea>
+            <div class="hint">Use commas or semicolons.</div>
+          </div>
+        </div>
+
+        <div class="card-block">
+          <h3>Education & Experience</h3>
+
+          <div class="field">
+            <label>Education</label>
+            <div id="job_education_group" class="check-group">
+              <label class="check-pill"><input type="checkbox" value="bachelors" /> <span>bachelors</span></label>
+              <label class="check-pill"><input type="checkbox" value="masters" /> <span>masters</span></label>
+              <label class="check-pill"><input type="checkbox" value="highschool" /> <span>highschool</span></label>
+              <label class="check-pill"><input type="checkbox" value="vocational" /> <span>vocational</span></label>
+              <label class="check-pill"><input type="checkbox" value="professional_certificate" /> <span>professional_certificate</span></label>
+              <label class="check-pill"><input type="checkbox" value="none" /> <span>none</span></label>
             </div>
+            <div class="hint">Select one or more education requirements.</div>
           </div>
 
-          <div class="btnRow">
-            <button class="btn" type="button" id="copyBtn">Copy current input</button>
+          <div class="field">
+            <label for="job_years_experience_required">Years Experience Required</label>
+            <input id="job_years_experience_required" type="number" step="0.1" />
+          </div>
+
+          <div class="field">
+            <label for="job_ambiguity_flag">Ambiguity Flag</label>
+            <select id="job_ambiguity_flag">
+              <option value="false">false</option>
+              <option value="true">true</option>
+            </select>
           </div>
         </div>
 
-        <div class="meta">
-          <span id="charCount">0 / 1200</span>
-          <span id="lastSaved">Live preview</span>
+        <div class="card-block full">
+          <h3>Source Text & Notes</h3>
+
+          <div class="field">
+            <label for="job_raw_text">Raw Job Text</label>
+            <textarea id="job_raw_text"></textarea>
+          </div>
+
+          <div class="field">
+            <label for="job_annotation_notes">Notes</label>
+            <textarea id="job_annotation_notes"></textarea>
+          </div>
         </div>
-      </aside>
+      </div>
+
+      <button id="saveJobBtn" type="button" class="primary">Save Job Annotation</button>
+      <div id="jobStatus" class="status"></div>
+    </section>
+
+    <!-- JOB PARSER -->
+    <section id="parserPanel" class="panel">
+      <div class="panel-head">
+        <h2>LLM Job PDF Parser (Batch Mode)</h2>
+        <p>Upload one or many Job PDFs and parse with one model or all models.</p>
+      </div>
+
+      <div class="grid">
+        <div class="card-block full">
+          <h3>Upload</h3>
+          <div class="field">
+            <label for="jobPdfFile">Upload Job PDFs</label>
+            <input id="jobPdfFile" type="file" accept="application/pdf" multiple />
+            <div class="hint">You can upload multiple PDFs.</div>
+          </div>
+        </div>
+
+        <div class="card-block">
+          <h3>Model Selection</h3>
+
+          <div class="field">
+            <label for="parser_mode">Mode</label>
+            <select id="parser_mode">
+              <option value="mistral">Mistral only</option>
+              <option value="llama">Llama only</option>
+              <option value="gemma">Gemma only</option>
+              <option value="all" selected>All models</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="parser_prompt_version">Prompt Version</label>
+            <input id="parser_prompt_version" value="v1" />
+          </div>
+        </div>
+      </div>
+
+      <button id="parseJobPdfBtn" type="button" class="primary">Parse Job PDFs (Batch)</button>
+      <div id="parserStatus" class="status"></div>
+      <div id="parserPreview" class="preview"></div>
     </section>
   </div>
 
-  <footer class="footer">
-    <p>
-      Job Prompt Studio (JPS) is an academic research prototype developed at the
-      <strong>University of Southern Denmark (SDU)</strong>.
-      Data collected through this interface is used strictly for academic purposes.
-    </p>
-  </footer>
-
-  <div class="toast" id="toast" role="status" aria-live="polite">
-    <span class="dot" aria-hidden="true"></span>
-    <span id="toastText">Copied</span>
-  </div>
-
-  <script type="module" src="./js/app.js"></script>
+  <script type="module" src="./js/admin.js"></script>
 </body>
 </html>
