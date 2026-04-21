@@ -111,6 +111,13 @@ function normalizeDisplayValue(value) {
   return clean(value);
 }
 
+function normalizeWebsite(url) {
+  const v = clean(url);
+  if (!v) return null;
+  if (/^https?:\/\//i.test(v)) return v;
+  return `https://${v}`;
+}
+
 function populateLocationOptions(selectEl, countryCode = "", placeholder = "Select location") {
   if (!selectEl) return;
 
@@ -130,7 +137,6 @@ function populateLocationOptions(selectEl, countryCode = "", placeholder = "Sele
 
 function switchMode(mode) {
   currentMode = mode;
-
   const isCandidate = mode === "candidate";
 
   candidateView?.classList.toggle("hiddenView", !isCandidate);
@@ -228,11 +234,6 @@ function buildAugmentedAbout(rawAbout, structured) {
   return parts.join("\n\n").trim();
 }
 
-function summarizeFilename(file) {
-  if (!file) return "No CV uploaded";
-  return `${file.name} (${Math.round(file.size / 1024)} KB)`;
-}
-
 function clearParsedProfile() {
   return;
 }
@@ -264,6 +265,10 @@ function setJobsUI({ state = "idle", message = "", jobs = [] } = {}) {
       title.className = "jobTitle";
       title.textContent = job.title || "Job listing";
 
+      const meta = document.createElement("p");
+      meta.className = "jobMeta";
+      meta.textContent = [clean(job.source), clean(job.company_name)].filter(Boolean).join(" • ");
+
       const btnRow = document.createElement("div");
       btnRow.className = "jobBtnRow";
 
@@ -272,12 +277,16 @@ function setJobsUI({ state = "idle", message = "", jobs = [] } = {}) {
       btn.href = job.url || "#";
       btn.target = "_blank";
       btn.rel = "noopener noreferrer";
-      btn.textContent = "Open job →";
+      btn.textContent = job.source === "Job Bank" ? "Open company listing →" : "Open job →";
 
       btnRow.appendChild(btn);
       card.appendChild(title);
-      card.appendChild(btnRow);
 
+      if (meta.textContent) {
+        card.appendChild(meta);
+      }
+
+      card.appendChild(btnRow);
       jobsList.appendChild(card);
     }
   }
@@ -292,10 +301,15 @@ function buildRecommendationColumns(jobs) {
   return {
     rec_job_1_title: clean(job1.title) || null,
     rec_job_1_url: clean(job1.url) || null,
+    rec_job_1_source: clean(job1.source) || null,
+
     rec_job_2_title: clean(job2.title) || null,
     rec_job_2_url: clean(job2.url) || null,
+    rec_job_2_source: clean(job2.source) || null,
+
     rec_job_3_title: clean(job3.title) || null,
     rec_job_3_url: clean(job3.url) || null,
+    rec_job_3_source: clean(job3.source) || null,
   };
 }
 
@@ -423,6 +437,116 @@ async function fetchTopJobs(queryText, locationText = "", country = "") {
   };
 }
 
+async function fetchJobBankMatches({
+  normalizedRole = "",
+  normalizedRoles = [],
+  skills = [],
+  location = [],
+  country = "",
+  seniority = "",
+}) {
+  let query = supabase
+    .from("job_posts")
+    .select(`
+      id,
+      company_name,
+      company_website,
+      application_url,
+      raw_job_title,
+      normalized_role,
+      normalized_roles,
+      skills,
+      location,
+      search_country,
+      seniority,
+      employment_type,
+      workplace_type,
+      summary,
+      is_active
+    `)
+    .eq("is_active", true);
+
+  if (clean(country)) {
+    query = query.eq("search_country", clean(country));
+  }
+
+  const { data, error } = await query.limit(100);
+
+  if (error) throw error;
+
+  const roleMain = clean(normalizedRole).toLowerCase();
+  const altRoles = asArray(normalizedRoles).map((v) => v.toLowerCase());
+  const userSkills = asArray(skills).map((v) => v.toLowerCase());
+  const userLocations = asArray(location).map((v) => v.toLowerCase());
+  const userSeniority = clean(seniority).toLowerCase();
+
+  const scored = (data || [])
+    .map((job) => {
+      const jobRole = clean(job.normalized_role).toLowerCase();
+      const jobAltRoles = asArray(job.normalized_roles).map((v) => v.toLowerCase());
+      const jobSkills = asArray(job.skills).map((v) => v.toLowerCase());
+      const jobLocations = asArray(job.location).map((v) => v.toLowerCase());
+      const jobSeniority = clean(job.seniority).toLowerCase();
+
+      let score = 0;
+
+      if (roleMain && jobRole && roleMain === jobRole) score += 50;
+
+      const roleOverlap = altRoles.filter((r) => jobAltRoles.includes(r));
+      score += Math.min(roleOverlap.length * 10, 20);
+
+      const skillOverlap = userSkills.filter((s) => jobSkills.includes(s));
+      score += Math.min(skillOverlap.length * 4, 20);
+
+      const locationOverlap = userLocations.filter((l) => jobLocations.includes(l));
+      if (locationOverlap.length) score += 10;
+
+      if (userSeniority && jobSeniority && userSeniority === jobSeniority) score += 5;
+
+      return {
+        id: job.id,
+        title: clean(job.raw_job_title) || clean(job.normalized_role) || "Job bank role",
+        url: clean(job.application_url) || clean(job.company_website) || "#",
+        source: "Job Bank",
+        company_name: clean(job.company_name),
+        summary: clean(job.summary),
+        match_score: score,
+      };
+    })
+    .filter((job) => job.match_score > 0)
+    .sort((a, b) => b.match_score - a.match_score)
+    .slice(0, 5);
+
+  return scored;
+}
+
+function dedupeJobs(jobs = []) {
+  const seen = new Set();
+
+  return jobs.filter((job) => {
+    const key = [
+      clean(job.title).toLowerCase(),
+      clean(job.company_name).toLowerCase(),
+      clean(job.url).toLowerCase(),
+    ].join("|");
+
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function mergeRecommendedJobs(externalJobs = [], bankJobs = []) {
+  const normalizedExternal = externalJobs.map((job) => ({
+    ...job,
+    source: job.source || "Jobindex",
+    company_name: clean(job.company_name),
+    match_score: typeof job.match_score === "number" ? job.match_score : 0,
+  }));
+
+  return dedupeJobs([...bankJobs, ...normalizedExternal]).slice(0, 8);
+}
+
 async function uploadCvPdf(file) {
   const path = `uploads/${crypto.randomUUID()}.pdf`;
 
@@ -537,6 +661,7 @@ const jobPostSubmitBtn = $("#jobPostSubmitBtn");
 
 const companyName = $("#companyName");
 const companyWebsite = $("#companyWebsite");
+const applicationUrl = $("#applicationUrl");
 const contactEmail = $("#contactEmail");
 const jobTitle = $("#jobTitle");
 const jobDescription = $("#jobDescription");
@@ -664,20 +789,32 @@ async function normalizeJobPost(payload) {
     body: payload,
   });
 
-  if (error) throw new Error(error.message || "mistral-job-post-normalizer failed");
-  if (data?.error) throw new Error(data.error);
+  console.log("mistral-job-post-normalizer response:", { data, error, payload });
+
+  if (error) {
+    const message =
+      data?.error ||
+      data?.details?.error ||
+      data?.details?.message ||
+      error.message ||
+      "mistral-job-post-normalizer failed";
+    throw new Error(message);
+  }
+
+  if (data?.error) {
+    throw new Error(data.error);
+  }
 
   return data;
 }
 
 async function insertJobPost(payload) {
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("job_posts")
-    .insert([payload])
-    .select();
+    .insert([payload]);
 
   if (error) throw error;
-  return data?.[0] || null;
+  return true;
 }
 
 function onEmployerEdit() {
@@ -707,7 +844,6 @@ jobPostCountry?.addEventListener("change", () => {
 
 recommendationRating?.addEventListener("change", async () => {
   const ratingValue = asNullableNumber(recommendationRating?.value);
-
   if (!latestRecommendationReady || !latestSubmissionId || !ratingValue) return;
 
   try {
@@ -730,6 +866,7 @@ recommendationRating?.addEventListener("change", async () => {
 [
   companyName,
   companyWebsite,
+  applicationUrl,
   contactEmail,
   jobTitle,
   jobDescription,
@@ -867,13 +1004,30 @@ form?.addEventListener("submit", async (e) => {
     const portalQuery = getPortalQuery(merged, finalCountry);
 
     const searchResult = await fetchTopJobs(portalQuery, primaryLocation, finalCountry);
-    const jobs = searchResult.jobs;
+
+    const externalJobs = Array.isArray(searchResult.jobs)
+      ? searchResult.jobs.map((job) => ({
+          ...job,
+          source: "Jobindex",
+        }))
+      : [];
+
+    const bankJobs = await fetchJobBankMatches({
+      normalizedRole: merged.normalized_role,
+      normalizedRoles: merged.normalized_roles,
+      skills: merged.skills,
+      location: merged.location,
+      country: finalCountry,
+      seniority: merged.seniority,
+    });
+
+    const jobs = mergeRecommendedJobs(externalJobs, bankJobs);
     const recCols = buildRecommendationColumns(jobs);
 
     const usedLocationFallback =
       Boolean(clean(searchResult.normalizedLocation)) &&
-      Array.isArray(jobs) &&
-      jobs.length > 0 &&
+      Array.isArray(searchResult.jobs) &&
+      searchResult.jobs.length > 0 &&
       Boolean(clean(searchResult.searchUrl)) &&
       !clean(searchResult.searchUrl).includes(clean(searchResult.normalizedLocation));
 
@@ -882,13 +1036,13 @@ form?.addEventListener("submit", async (e) => {
     if (clean(searchResult.portal_error)) {
       jobsMessage =
         finalCountry === "DE"
-          ? "Germany search is temporarily unavailable from the current server environment. You can still open the source portal below."
-          : "Search is temporarily unavailable. Please try again.";
+          ? "Germany search is temporarily unavailable from the current server environment. Job bank matches may still be shown."
+          : "External search is temporarily unavailable. Job bank matches may still be shown.";
     } else if (!jobs.length) {
       jobsMessage =
-        "No results found. Try refining the role or choosing another supported location in Denmark or Germany.";
+        "No results found. Try refining the role or choosing another supported location.";
     } else if (primaryLocation && usedLocationFallback) {
-      jobsMessage = `No jobs were found in ${primaryLocation}. Showing related jobs from a broader search instead.`;
+      jobsMessage = `No external jobs were found in ${primaryLocation}. Showing broader external matches and any job-bank matches instead.`;
     }
 
     const submissionId = randomId("s");
@@ -1034,7 +1188,8 @@ jobPostForm?.addEventListener("submit", async (e) => {
       poster_type: "company",
 
       company_name: clean(companyName?.value),
-      company_website: clean(companyWebsite?.value) || null,
+      company_website: normalizeWebsite(companyWebsite?.value),
+      application_url: normalizeWebsite(applicationUrl?.value),
       contact_email: clean(contactEmail?.value) || null,
 
       raw_job_title: anonymizeText(rawTitle),
@@ -1069,6 +1224,9 @@ jobPostForm?.addEventListener("submit", async (e) => {
       requirements: asArray(normalized?.requirements),
       nice_to_have: asArray(normalized?.nice_to_have),
       benefits: asArray(normalized?.benefits),
+
+      is_active: true,
+      visibility: "public",
     };
 
     await insertJobPost(payload);
