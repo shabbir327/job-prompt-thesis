@@ -563,7 +563,7 @@ function updatePreview() {
 }
 
 jobCountry?.addEventListener("change", () => {
-  populateLocationOptions(clean(jobCountry.value));
+  populateLocationOptions(clean(jobCountry?.value));
   onEdit();
 });
 
@@ -592,7 +592,7 @@ recommendationRating?.addEventListener("change", async () => {
 resetBtn?.addEventListener("click", () => {
   form?.reset();
   if (cvFile) cvFile.value = "";
-  populateLocationOptions("");
+  populateLocationOptions(clean(jobCountry?.value));
   clearParsedProfile();
   setJobsUI({ state: "idle" });
   if (jobindexAllLink) jobindexAllLink.href = "#";
