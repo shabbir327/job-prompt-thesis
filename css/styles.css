@@ -129,6 +129,40 @@ header h1 {
   padding: 12px 14px;
 }
 
+.modeSwitch {
+  display: inline-flex;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 16px;
+  background: #eef4ff;
+  border: 1px solid #d8e4ff;
+  margin-top: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.modeBtn {
+  border: 0;
+  background: transparent;
+  color: var(--brand-dark);
+  padding: 11px 16px;
+  border-radius: 12px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.modeBtn.active {
+  background: linear-gradient(180deg, var(--brand), var(--brand-dark));
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(47, 111, 237, 0.22);
+}
+
+.hiddenView {
+  display: none !important;
+}
+
 .field {
   margin-bottom: 16px;
 }
@@ -143,6 +177,8 @@ label {
 input[type="text"],
 input[type="number"],
 input[type="file"],
+input[type="email"],
+input[type="url"],
 textarea,
 select {
   width: 100%;
@@ -503,5 +539,13 @@ select:focus {
 
   .ratingSelect {
     max-width: 100%;
+  }
+
+  .modeSwitch {
+    width: 100%;
+  }
+
+  .modeBtn {
+    flex: 1 1 auto;
   }
 }
