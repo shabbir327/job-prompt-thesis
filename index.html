@@ -189,106 +189,72 @@
         </form>
       </div>
 
-      <aside class="panel summary" aria-label="Live preview and recommendation results">
-        <div class="top">
-          <p class="kicker">Preview</p>
-          <h2 class="title titleSmall">AI profile insights and job matches.</h2>
-          <p class="subtitle subtitleWide">
-            This preview updates as you type or upload content. Click
-            <b>Get recommendation</b> to save your response, parse your input,
-            and fetch relevant job suggestions.
+          <aside class="panel summary" aria-label="Recommendation results">
+      <div class="top">
+        <p class="kicker">Results</p>
+        <h2 class="title titleSmall">Recommended jobs and feedback.</h2>
+        <p class="subtitle subtitleWide">
+          Click <b>Get recommendation</b> to fetch matching jobs and then rate how useful they are.
+        </p>
+      </div>
+    
+      <div class="mini">
+        <div class="card">
+          <h3>Suggested jobs</h3>
+    
+          <p id="jobsHint" class="lockedHint">
+            Click <b>Get recommendation</b> to fetch matching jobs.
+          </p>
+    
+          <p id="jobsStatus" class="lockedHint" style="display:none;"></p>
+    
+          <div id="jobsSkeleton" class="jobsList" style="display:none;">
+            <div class="skeletonCard"></div>
+            <div class="skeletonCard"></div>
+            <div class="skeletonCard"></div>
+          </div>
+    
+          <div id="jobsList" class="jobsList" style="display:none;"></div>
+    
+          <p class="lockedHint" style="margin-top:10px;">
+            <a
+              id="jobindexAllLink"
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="subLink"
+            >
+              View all results on the source portal →
+            </a>
           </p>
         </div>
-
-        <div class="mini">
-          <div class="card">
-            <h3>Input summary</h3>
-            <p id="previewMode">Prompt and/or CV</p>
-          </div>
-
-          <div class="card">
-            <h3>Role / target</h3>
-            <p id="previewRole">—</p>
-          </div>
-
-          <div class="card">
-            <h3>Experience / CV content</h3>
-            <p id="previewExperience">—</p>
-          </div>
-
-          <div class="card">
-            <h3>Structured input</h3>
-            <p id="previewStructured">—</p>
-          </div>
-
-          <div class="card">
-            <h3>Parsed profile</h3>
-            <p id="parsedHint" class="lockedHint">
-              Submit your input to generate parsed skills, roles, and recommendation signals.
-            </p>
-            <div id="parsedProfile" style="display:none;"></div>
-          </div>
-
-          <div class="card">
-            <h3>Suggested jobs</h3>
-
-            <p id="jobsHint" class="lockedHint">
-              Click <b>Get recommendation</b> to fetch matching jobs.
-            </p>
-
-            <p id="jobsStatus" class="lockedHint" style="display:none;"></p>
-
-            <div id="jobsSkeleton" class="jobsList" style="display:none;">
-              <div class="skeletonCard"></div>
-              <div class="skeletonCard"></div>
-              <div class="skeletonCard"></div>
-            </div>
-
-            <div id="jobsList" class="jobsList" style="display:none;"></div>
-
-            <p class="lockedHint" style="margin-top:10px;">
-              <a
-                id="jobindexAllLink"
-                href="#"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="subLink"
-              >
-                View all results on the source portal →
-              </a>
-            </p>
-          </div>
-
-          <div class="card ratingCard">
-            <h3>Rate these recommendations</h3>
-            <p class="fieldNote">
-              How useful were the recommended jobs?
-            </p>
-
-            <div class="ratingWrap">
-              <label for="recommendationRating" class="ratingLabel">Rating</label>
-              <select id="recommendationRating" name="recommendationRating" class="styledSelect ratingSelect" disabled>
-                <option value="">Select rating</option>
-                <option value="1">1 - Very poor</option>
-                <option value="2">2 - Poor</option>
-                <option value="3">3 - Neutral</option>
-                <option value="4">4 - Good</option>
-                <option value="5">5 - Excellent</option>
-              </select>
-              <p id="ratingStatus" class="ratingStatus">Rate after recommendations appear.</p>
-            </div>
-          </div>
-
-          <div class="btnRow">
-            <button class="btn" type="button" id="copyBtn">Copy current input</button>
+    
+        <div class="card ratingCard">
+          <h3>Rate these recommendations</h3>
+          <p class="fieldNote">
+            How useful were the recommended jobs?
+          </p>
+    
+          <div class="ratingWrap">
+            <label for="recommendationRating" class="ratingLabel">Rating</label>
+            <select id="recommendationRating" name="recommendationRating" class="styledSelect ratingSelect" disabled>
+              <option value="">Select rating</option>
+              <option value="1">1 - Very poor</option>
+              <option value="2">2 - Poor</option>
+              <option value="3">3 - Neutral</option>
+              <option value="4">4 - Good</option>
+              <option value="5">5 - Excellent</option>
+            </select>
+            <p id="ratingStatus" class="ratingStatus">Rate after recommendations appear.</p>
           </div>
         </div>
-
-        <div class="meta">
-          <span id="charCount">0 / 1200</span>
-          <span id="lastSaved">Live preview</span>
-        </div>
-      </aside>
+      </div>
+    
+      <div class="meta">
+        <span id="charCount">0 / 1200</span>
+        <span id="lastSaved">Ready</span>
+      </div>
+    </aside>
     </section>
   </div>
 
