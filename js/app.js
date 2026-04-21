@@ -30,14 +30,6 @@ const consentEl = $("#consent");
 const recommendationRating = $("#recommendationRating");
 const ratingStatus = $("#ratingStatus");
 
-const previewMode = $("#previewMode");
-const previewRole = $("#previewRole");
-const previewExperience = $("#previewExperience");
-const previewStructured = $("#previewStructured");
-
-const parsedHint = $("#parsedHint");
-const parsedProfile = $("#parsedProfile");
-
 const jobsHint = $("#jobsHint");
 const jobsStatus = $("#jobsStatus");
 const jobsSkeleton = $("#jobsSkeleton");
@@ -309,44 +301,12 @@ function normalizeDisplayValue(value) {
 }
 
 function clearParsedProfile() {
-  if (parsedHint) parsedHint.style.display = "block";
-  if (parsedProfile) {
-    parsedProfile.style.display = "none";
-    parsedProfile.innerHTML = "";
-  }
+  return;
 }
 
 function renderParsedProfile(data) {
-  if (!parsedProfile) return;
-
-  const sections = [
-    ["Detected language", data?.language],
-    ["Search country", data?.search_country],
-    ["Normalized role", data?.normalized_role],
-    ["Normalized roles", data?.normalized_roles],
-    ["Portal query role", data?.portal_query_role],
-    ["Jobindex query", data?.jobindex_query],
-    ["Stepstone query", data?.stepstone_query],
-    ["Role-specific experience", formatRoleExperience(data?.role_experience)],
-    ["Danish keywords", data?.danish_keywords],
-    ["English keywords", data?.english_keywords],
-    ["Adjacent roles", data?.adjacent_roles],
-    ["Skills", data?.skills],
-    ["Industries", data?.industries],
-    ["Education", data?.education],
-    ["Languages", data?.languages],
-    ["Location", data?.location],
-    ["Years of relevant experience", data?.years_experience],
-    ["Seniority", data?.seniority],
-    ["Summary", data?.summary],
-  ]
-    .map(([label, value]) => [label, normalizeDisplayValue(value)])
-    .filter(([, value]) => clean(value));
-
-  if (!sections.length) {
-    clearParsedProfile();
-    return;
-  }
+  return;
+}
 
   parsedProfile.innerHTML = sections
     .map(
@@ -598,13 +558,6 @@ function getPortalQuery(merged, country) {
 }
 
 function updatePreview() {
-  const summary = currentInputSummary();
-
-  if (previewMode) previewMode.textContent = summary.modeLabel;
-  if (previewRole) previewRole.textContent = summary.roleText;
-  if (previewExperience) previewExperience.textContent = summary.contentText;
-  if (previewStructured) previewStructured.textContent = summary.structuredText;
-
   updateCounter();
   if (lastSaved) lastSaved.textContent = `Updated ${nowStamp()}`;
 }
