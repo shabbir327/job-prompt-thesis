@@ -3,43 +3,23 @@ import { anonymizeText, randomId, getOrCreateParticipantId } from "./anonymize.j
 
 const $ = (sel) => document.querySelector(sel);
 
-const form = $("#jobForm");
 const statusPill = $("#statusPill");
-const ariaLive = $("#ariaLive");
-const charCount = $("#charCount");
-const lastSaved = $("#lastSaved");
-
-const resetBtn = $("#resetBtn");
-const submitBtn = $("#submitBtn");
-const copyBtn = $("#copyBtn");
-
 const toast = $("#toast");
 const toastText = $("#toastText");
 
-const role = $("#role");
-const experience = $("#experience");
-const education = $("#education");
-const yearsExperience = $("#yearsExperience");
-const skills = $("#skills");
-const languages = $("#languages");
-const jobCountry = $("#jobCountry");
-const location = $("#location");
-const cvFile = $("#cvFile");
-const consentEl = $("#consent");
+const candidateModeBtn = $("#candidateModeBtn");
+const employerModeBtn = $("#employerModeBtn");
 
-const recommendationRating = $("#recommendationRating");
-const ratingStatus = $("#ratingStatus");
+const candidateView = $("#candidateView");
+const employerView = $("#employerView");
+const candidateResults = $("#candidateResults");
+const employerResults = $("#employerResults");
 
-const jobsHint = $("#jobsHint");
-const jobsStatus = $("#jobsStatus");
-const jobsSkeleton = $("#jobsSkeleton");
-const jobsList = $("#jobsList");
-const jobindexAllLink = $("#jobindexAllLink");
+let currentMode = "candidate";
 
-const participantId = getOrCreateParticipantId();
-
-let latestSubmissionId = "";
-let latestRecommendationReady = false;
+/* -------------------------
+   Shared helpers
+------------------------- */
 
 const SUPPORTED_LOCATIONS = {
   DK: [
@@ -110,64 +90,6 @@ function setStatus(text) {
   if (statusPill) statusPill.textContent = text || "";
 }
 
-function setAria(text) {
-  if (ariaLive) ariaLive.textContent = text || "";
-}
-
-function updateCounter() {
-  const max = Number(experience?.maxLength || 1200);
-  const used = experience?.value?.length || 0;
-  charCount.textContent = `${used} / ${max}`;
-}
-
-function normalizeTextKey(text) {
-  return clean(text)
-    .toLowerCase()
-    .replace(/æ/g, "ae")
-    .replace(/ø/g, "oe")
-    .replace(/å/g, "aa")
-    .replace(/ä/g, "ae")
-    .replace(/ö/g, "oe")
-    .replace(/ü/g, "ue")
-    .replace(/ß/g, "ss")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^\w\s-]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function slugifyPart(text) {
-  return normalizeTextKey(text)
-    .replace(/_/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
-function jobBoardUrlForResult(queryText, locationText = "", portal = "jobindex") {
-  const qSlug = slugifyPart(queryText);
-  const locationSlug = slugifyPart(locationText);
-
-  if (portal === "stepstone") {
-    if (qSlug && locationSlug) return `https://www.stepstone.de/jobs/${qSlug}/in-${locationSlug}/`;
-    if (qSlug) return `https://www.stepstone.de/jobs/${qSlug}/`;
-    return "https://www.stepstone.de/";
-  }
-
-  if (locationSlug && clean(queryText)) {
-    const q = encodeURIComponent(clean(queryText)).replace(/%20/g, "+");
-    return `https://www.jobindex.dk/jobsoegning/${locationSlug}?q=${q}`;
-  }
-
-  if (clean(queryText)) {
-    const q = encodeURIComponent(clean(queryText)).replace(/%20/g, "+");
-    return `https://www.jobindex.dk/jobsoegning?q=${q}`;
-  }
-
-  return "https://www.jobindex.dk/jobsoegning";
-}
-
 function escapeHtml(str) {
   return String(str ?? "")
     .replaceAll("&", "&amp;")
@@ -177,9 +99,97 @@ function escapeHtml(str) {
     .replaceAll("'", "&#039;");
 }
 
-function summarizeFilename(file) {
-  if (!file) return "No CV uploaded";
-  return `${file.name} (${Math.round(file.size / 1024)} KB)`;
+function normalizeDisplayValue(value) {
+  if (Array.isArray(value)) return value.map((v) => normalizeDisplayValue(v)).filter(Boolean).join(", ");
+  if (value && typeof value === "object") {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+  return clean(value);
+}
+
+function populateLocationOptions(selectEl, countryCode = "", placeholder = "Select location") {
+  if (!selectEl) return;
+
+  const locations = SUPPORTED_LOCATIONS[countryCode] || [];
+  const current = clean(selectEl.value);
+
+  selectEl.innerHTML = `<option value="">${placeholder}</option>`;
+
+  for (const loc of locations) {
+    const option = document.createElement("option");
+    option.value = loc;
+    option.textContent = loc;
+    if (loc === current) option.selected = true;
+    selectEl.appendChild(option);
+  }
+}
+
+function switchMode(mode) {
+  currentMode = mode;
+
+  const isCandidate = mode === "candidate";
+
+  candidateView?.classList.toggle("hiddenView", !isCandidate);
+  candidateResults?.classList.toggle("hiddenView", !isCandidate);
+
+  employerView?.classList.toggle("hiddenView", isCandidate);
+  employerResults?.classList.toggle("hiddenView", isCandidate);
+
+  candidateModeBtn?.classList.toggle("active", isCandidate);
+  employerModeBtn?.classList.toggle("active", !isCandidate);
+
+  setStatus(isCandidate ? "Thesis Prototype v1" : "Employer Job Bank");
+}
+
+/* -------------------------
+   Candidate mode
+------------------------- */
+
+const participantId = getOrCreateParticipantId();
+
+const form = $("#jobForm");
+const ariaLive = $("#ariaLive");
+const charCount = $("#charCount");
+const lastSaved = $("#lastSaved");
+
+const resetBtn = $("#resetBtn");
+const submitBtn = $("#submitBtn");
+
+const role = $("#role");
+const experience = $("#experience");
+const education = $("#education");
+const yearsExperience = $("#yearsExperience");
+const skills = $("#skills");
+const languages = $("#languages");
+const jobCountry = $("#jobCountry");
+const location = $("#location");
+const cvFile = $("#cvFile");
+const consentEl = $("#consent");
+
+const recommendationRating = $("#recommendationRating");
+const ratingStatus = $("#ratingStatus");
+
+const jobsHint = $("#jobsHint");
+const jobsStatus = $("#jobsStatus");
+const jobsSkeleton = $("#jobsSkeleton");
+const jobsList = $("#jobsList");
+const jobindexAllLink = $("#jobindexAllLink");
+
+let latestSubmissionId = "";
+let latestRecommendationReady = false;
+
+function setCandidateAria(text) {
+  if (ariaLive) ariaLive.textContent = text || "";
+}
+
+function updateCandidateCounter() {
+  const max = Number(experience?.maxLength || 1200);
+  const used = experience?.value?.length || 0;
+  if (charCount) charCount.textContent = `${used} / ${max}`;
 }
 
 function setRatingEnabled(enabled, message = "") {
@@ -193,23 +203,6 @@ function setRatingEnabled(enabled, message = "") {
   }
 }
 
-function populateLocationOptions(countryCode = clean(jobCountry?.value)) {
-  if (!location) return;
-
-  const locations = SUPPORTED_LOCATIONS[countryCode] || [];
-  const current = clean(location.value);
-
-  location.innerHTML = `<option value="">Select location</option>`;
-
-  for (const loc of locations) {
-    const option = document.createElement("option");
-    option.value = loc;
-    option.textContent = loc;
-    if (loc === current) option.selected = true;
-    location.appendChild(option);
-  }
-}
-
 function getStructuredPromptFields() {
   return {
     education: clean(education?.value),
@@ -219,21 +212,6 @@ function getStructuredPromptFields() {
     country: clean(jobCountry?.value),
     location: clean(location?.value) ? [clean(location.value)] : [],
   };
-}
-
-function buildStructuredPreviewText() {
-  const fields = getStructuredPromptFields();
-
-  const lines = [
-    fields.education ? `Education: ${fields.education}` : "",
-    fields.yearsExperience ? `Years of experience: ${fields.yearsExperience}` : "",
-    fields.skills.length ? `Skills: ${fields.skills.join(", ")}` : "",
-    fields.languages.length ? `Languages: ${fields.languages.join(", ")}` : "",
-    fields.country ? `Country: ${fields.country === "DK" ? "Denmark" : "Germany"}` : "",
-    fields.location.length ? `Location: ${fields.location.join(", ")}` : "",
-  ].filter(Boolean);
-
-  return lines.length ? lines.join("\n") : "—";
 }
 
 function buildAugmentedAbout(rawAbout, structured) {
@@ -250,77 +228,17 @@ function buildAugmentedAbout(rawAbout, structured) {
   return parts.join("\n\n").trim();
 }
 
-function currentInputSummary() {
-  const file = cvFile?.files?.[0] || null;
-  const hasCv = !!file;
-  const hasPrompt = !!clean(role?.value) || !!clean(experience?.value);
-
-  let modeLabel = "Prompt only";
-  if (hasPrompt && hasCv) modeLabel = "Prompt + CV";
-  else if (!hasPrompt && hasCv) modeLabel = "CV only";
-
-  return {
-    modeLabel,
-    roleText: clean(role?.value) || (file ? "CV-based recommendation" : "—"),
-    contentText: hasCv ? summarizeFilename(file) : (clean(experience?.value) || "—"),
-    structuredText: buildStructuredPreviewText(),
-  };
-}
-
-function formatRoleExperience(roleExperience) {
-  if (!Array.isArray(roleExperience) || !roleExperience.length) return "";
-
-  return roleExperience
-    .map((item) => {
-      const roleText = clean(item?.role);
-      const years = item?.years;
-      const evidence = clean(item?.evidence);
-
-      const yearsText =
-        years === null || years === undefined || years === ""
-          ? ""
-          : `${years} year${Number(years) === 1 ? "" : "s"}`;
-
-      const left = [roleText, yearsText].filter(Boolean).join(" — ");
-      return evidence ? `${left}\nEvidence: ${evidence}` : left;
-    })
-    .filter(Boolean)
-    .join("\n\n");
-}
-
-function normalizeDisplayValue(value) {
-  if (Array.isArray(value)) return value.map((v) => normalizeDisplayValue(v)).filter(Boolean).join(", ");
-  if (value && typeof value === "object") {
-    try {
-      return JSON.stringify(value);
-    } catch {
-      return String(value);
-    }
-  }
-  return clean(value);
+function summarizeFilename(file) {
+  if (!file) return "No CV uploaded";
+  return `${file.name} (${Math.round(file.size / 1024)} KB)`;
 }
 
 function clearParsedProfile() {
   return;
 }
 
-function renderParsedProfile(data) {
+function renderParsedProfile() {
   return;
-}
-
-  parsedProfile.innerHTML = sections
-    .map(
-      ([label, value]) => `
-      <div class="parsedGroup">
-        <p class="parsedLabel">${escapeHtml(label)}</p>
-        <p class="parsedValue">${escapeHtml(value)}</p>
-      </div>
-    `
-    )
-    .join("");
-
-  if (parsedHint) parsedHint.style.display = "none";
-  parsedProfile.style.display = "grid";
 }
 
 function setJobsUI({ state = "idle", message = "", jobs = [] } = {}) {
@@ -381,12 +299,61 @@ function buildRecommendationColumns(jobs) {
   };
 }
 
-function onEdit() {
-  updatePreview();
+function onCandidateEdit() {
+  updateCandidateCounter();
   clearParsedProfile();
   setJobsUI({ state: "idle" });
   if (jobindexAllLink) jobindexAllLink.href = "#";
-  setStatus("Draft · editing");
+  if (lastSaved) lastSaved.textContent = `Updated ${nowStamp()}`;
+  if (currentMode === "candidate") setStatus("Draft · editing");
+}
+
+function normalizeTextKey(text) {
+  return clean(text)
+    .toLowerCase()
+    .replace(/æ/g, "ae")
+    .replace(/ø/g, "oe")
+    .replace(/å/g, "aa")
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue")
+    .replace(/ß/g, "ss")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function slugifyPart(text) {
+  return normalizeTextKey(text)
+    .replace(/_/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function jobBoardUrlForResult(queryText, locationText = "", portal = "jobindex") {
+  const qSlug = slugifyPart(queryText);
+  const locationSlug = slugifyPart(locationText);
+
+  if (portal === "stepstone") {
+    if (qSlug && locationSlug) return `https://www.stepstone.de/jobs/${qSlug}/in-${locationSlug}/`;
+    if (qSlug) return `https://www.stepstone.de/jobs/${qSlug}/`;
+    return "https://www.stepstone.de/";
+  }
+
+  if (locationSlug && clean(queryText)) {
+    const q = encodeURIComponent(clean(queryText)).replace(/%20/g, "+");
+    return `https://www.jobindex.dk/jobsoegning/${locationSlug}?q=${q}`;
+  }
+
+  if (clean(queryText)) {
+    const q = encodeURIComponent(clean(queryText)).replace(/%20/g, "+");
+    return `https://www.jobindex.dk/jobsoegning?q=${q}`;
+  }
+
+  return "https://www.jobindex.dk/jobsoegning";
 }
 
 async function insertCandidateProfile(payload) {
@@ -557,14 +524,185 @@ function getPortalQuery(merged, country) {
   return clean(merged?.jobindex_query) || clean(merged?.portal_query_role) || clean(merged?.normalized_role);
 }
 
-function updatePreview() {
-  updateCounter();
-  if (lastSaved) lastSaved.textContent = `Updated ${nowStamp()}`;
+/* -------------------------
+   Employer mode
+------------------------- */
+
+const jobPostForm = $("#jobPostForm");
+const jobPostAriaLive = $("#jobPostAriaLive");
+const jobPostCharCount = $("#jobPostCharCount");
+const jobPostLastSaved = $("#jobPostLastSaved");
+const jobPostResetBtn = $("#jobPostResetBtn");
+const jobPostSubmitBtn = $("#jobPostSubmitBtn");
+
+const companyName = $("#companyName");
+const companyWebsite = $("#companyWebsite");
+const contactEmail = $("#contactEmail");
+const jobTitle = $("#jobTitle");
+const jobDescription = $("#jobDescription");
+const jobRequirements = $("#jobRequirements");
+const jobBenefits = $("#jobBenefits");
+const jobPostCountry = $("#jobPostCountry");
+const jobPostLocation = $("#jobPostLocation");
+const employmentType = $("#employmentType");
+const workplaceType = $("#workplaceType");
+const jobEducation = $("#jobEducation");
+const jobYearsExperience = $("#jobYearsExperience");
+const jobSkills = $("#jobSkills");
+const jobLanguages = $("#jobLanguages");
+const jobSeniority = $("#jobSeniority");
+const jobIndustry = $("#jobIndustry");
+const jobPostConsent = $("#jobPostConsent");
+
+const jobPostParsedHint = $("#jobPostParsedHint");
+const jobPostParsedProfile = $("#jobPostParsedProfile");
+const jobPostStatusText = $("#jobPostStatusText");
+
+function setEmployerAria(text) {
+  if (jobPostAriaLive) jobPostAriaLive.textContent = text || "";
 }
 
+function updateEmployerCounter() {
+  const max = Number(jobDescription?.maxLength || 4000);
+  const used = jobDescription?.value?.length || 0;
+  if (jobPostCharCount) jobPostCharCount.textContent = `${used} / ${max}`;
+}
+
+function clearEmployerParsedProfile() {
+  if (jobPostParsedHint) jobPostParsedHint.style.display = "block";
+  if (jobPostParsedProfile) {
+    jobPostParsedProfile.innerHTML = "";
+    jobPostParsedProfile.style.display = "none";
+  }
+}
+
+function renderEmployerParsedProfile(data) {
+  if (!jobPostParsedProfile) return;
+
+  const sections = [
+    ["Normalized role", normalizeDisplayValue(data?.normalized_role)],
+    ["Alternative roles", normalizeDisplayValue(data?.normalized_roles)],
+    ["Skills", normalizeDisplayValue(data?.skills)],
+    ["Industries", normalizeDisplayValue(data?.industries)],
+    ["Education", normalizeDisplayValue(data?.education)],
+    ["Languages", normalizeDisplayValue(data?.languages)],
+    ["Years of experience", normalizeDisplayValue(data?.years_experience)],
+    ["Seniority", normalizeDisplayValue(data?.seniority)],
+    ["Employment type", normalizeDisplayValue(data?.employment_type)],
+    ["Workplace type", normalizeDisplayValue(data?.workplace_type)],
+    ["Department", normalizeDisplayValue(data?.department)],
+    ["Responsibilities", normalizeDisplayValue(data?.responsibilities)],
+    ["Requirements", normalizeDisplayValue(data?.requirements)],
+    ["Nice to have", normalizeDisplayValue(data?.nice_to_have)],
+    ["Benefits", normalizeDisplayValue(data?.benefits)],
+    ["Locations", normalizeDisplayValue(data?.location)],
+    ["Summary", normalizeDisplayValue(data?.summary)],
+  ].filter(([, value]) => clean(value));
+
+  if (!sections.length) {
+    clearEmployerParsedProfile();
+    return;
+  }
+
+  jobPostParsedProfile.innerHTML = sections
+    .map(
+      ([label, value]) => `
+        <div class="parsedGroup">
+          <p class="parsedLabel">${escapeHtml(label)}</p>
+          <p class="parsedValue">${escapeHtml(value)}</p>
+        </div>
+      `
+    )
+    .join("");
+
+  if (jobPostParsedHint) jobPostParsedHint.style.display = "none";
+  jobPostParsedProfile.style.display = "grid";
+}
+
+function getEmployerStructuredFields() {
+  return {
+    education: parseCommaList(jobEducation?.value),
+    yearsExperience: asNullableNumber(jobYearsExperience?.value),
+    skills: parseCommaList(jobSkills?.value),
+    languages: parseCommaList(jobLanguages?.value),
+    industry: clean(jobIndustry?.value),
+    country: clean(jobPostCountry?.value),
+    location: clean(jobPostLocation?.value) ? [clean(jobPostLocation.value)] : [],
+    seniority: clean(jobSeniority?.value),
+    employmentType: clean(employmentType?.value),
+    workplaceType: clean(workplaceType?.value),
+  };
+}
+
+function buildEmployerNormalizerPayload() {
+  const structured = getEmployerStructuredFields();
+
+  const extraNotes = [
+    structured.education.length ? `Education: ${structured.education.join(", ")}` : "",
+    structured.yearsExperience !== null ? `Years of experience: ${structured.yearsExperience}` : "",
+    structured.skills.length ? `Skills: ${structured.skills.join(", ")}` : "",
+    structured.languages.length ? `Languages: ${structured.languages.join(", ")}` : "",
+    structured.industry ? `Industry/Department: ${structured.industry}` : "",
+    structured.seniority ? `Seniority: ${structured.seniority}` : "",
+    structured.employmentType ? `Employment type: ${structured.employmentType}` : "",
+    structured.workplaceType ? `Workplace type: ${structured.workplaceType}` : "",
+    structured.location.length ? `Location: ${structured.location.join(", ")}` : "",
+  ].filter(Boolean).join("\n");
+
+  return {
+    companyName: clean(companyName?.value),
+    jobTitle: clean(jobTitle?.value),
+    jobDescription: clean(jobDescription?.value),
+    jobRequirements: [clean(jobRequirements?.value), extraNotes].filter(Boolean).join("\n\n"),
+    jobBenefits: clean(jobBenefits?.value),
+    searchCountry: clean(jobPostCountry?.value),
+  };
+}
+
+async function normalizeJobPost(payload) {
+  const { data, error } = await supabase.functions.invoke("mistral-job-post-normalizer", {
+    body: payload,
+  });
+
+  if (error) throw new Error(error.message || "mistral-job-post-normalizer failed");
+  if (data?.error) throw new Error(data.error);
+
+  return data;
+}
+
+async function insertJobPost(payload) {
+  const { data, error } = await supabase
+    .from("job_posts")
+    .insert([payload])
+    .select();
+
+  if (error) throw error;
+  return data?.[0] || null;
+}
+
+function onEmployerEdit() {
+  updateEmployerCounter();
+  clearEmployerParsedProfile();
+  if (jobPostStatusText) jobPostStatusText.textContent = "Draft updated.";
+  if (jobPostLastSaved) jobPostLastSaved.textContent = `Updated ${nowStamp()}`;
+  if (currentMode === "employer") setStatus("Employer Job Bank · editing");
+}
+
+/* -------------------------
+   Events
+------------------------- */
+
+candidateModeBtn?.addEventListener("click", () => switchMode("candidate"));
+employerModeBtn?.addEventListener("click", () => switchMode("employer"));
+
 jobCountry?.addEventListener("change", () => {
-  populateLocationOptions(clean(jobCountry?.value));
-  onEdit();
+  populateLocationOptions(location, clean(jobCountry?.value));
+  onCandidateEdit();
+});
+
+jobPostCountry?.addEventListener("change", () => {
+  populateLocationOptions(jobPostLocation, clean(jobPostCountry?.value));
+  onEmployerEdit();
 });
 
 recommendationRating?.addEventListener("change", async () => {
@@ -585,48 +723,64 @@ recommendationRating?.addEventListener("change", async () => {
 
 [role, experience, education, yearsExperience, skills, languages, location, consentEl, cvFile].forEach((el) => {
   if (!el) return;
-  el.addEventListener("input", onEdit);
-  el.addEventListener("change", onEdit);
+  el.addEventListener("input", onCandidateEdit);
+  el.addEventListener("change", onCandidateEdit);
+});
+
+[
+  companyName,
+  companyWebsite,
+  contactEmail,
+  jobTitle,
+  jobDescription,
+  jobRequirements,
+  jobBenefits,
+  jobPostLocation,
+  employmentType,
+  workplaceType,
+  jobEducation,
+  jobYearsExperience,
+  jobSkills,
+  jobLanguages,
+  jobSeniority,
+  jobIndustry,
+  jobPostConsent,
+].forEach((el) => {
+  if (!el) return;
+  el.addEventListener("input", onEmployerEdit);
+  el.addEventListener("change", onEmployerEdit);
 });
 
 resetBtn?.addEventListener("click", () => {
   form?.reset();
   if (cvFile) cvFile.value = "";
-  populateLocationOptions(clean(jobCountry?.value));
+  populateLocationOptions(location, clean(jobCountry?.value));
   clearParsedProfile();
   setJobsUI({ state: "idle" });
   if (jobindexAllLink) jobindexAllLink.href = "#";
-  if (lastSaved) lastSaved.textContent = "Live preview";
+  if (lastSaved) lastSaved.textContent = "Ready";
   setStatus("Thesis Prototype v1");
   latestSubmissionId = "";
   latestRecommendationReady = false;
   setRatingEnabled(false, "Rate after recommendations appear.");
-  updatePreview();
+  updateCandidateCounter();
   role?.focus();
 });
 
-copyBtn?.addEventListener("click", async () => {
-  const summary = currentInputSummary();
-
-  const text = [
-    `Input type: ${summary.modeLabel}`,
-    "",
-    `Role / target: ${summary.roleText}`,
-    "",
-    "Experience / CV content:",
-    summary.contentText,
-    "",
-    "Structured input:",
-    summary.structuredText,
-  ].join("\n");
-
-  try {
-    await navigator.clipboard.writeText(text);
-    showToast("Copied to clipboard");
-  } catch {
-    showToast("Could not copy");
-  }
+jobPostResetBtn?.addEventListener("click", () => {
+  jobPostForm?.reset();
+  populateLocationOptions(jobPostLocation, clean(jobPostCountry?.value));
+  clearEmployerParsedProfile();
+  if (jobPostStatusText) jobPostStatusText.textContent = "Ready to save a job post.";
+  if (jobPostLastSaved) jobPostLastSaved.textContent = "Ready";
+  setStatus("Employer Job Bank");
+  updateEmployerCounter();
+  companyName?.focus();
 });
+
+/* -------------------------
+   Candidate submit
+------------------------- */
 
 form?.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -666,7 +820,7 @@ form?.addEventListener("submit", async (e) => {
     if (submitBtn) submitBtn.disabled = true;
 
     setStatus("Parsing with AI…");
-    setAria("Parsing your input.");
+    setCandidateAria("Parsing your input.");
     clearParsedProfile();
     setJobsUI({
       state: "loading",
@@ -706,7 +860,7 @@ form?.addEventListener("submit", async (e) => {
     renderParsedProfile(merged);
 
     setStatus("Finding jobs…");
-    setAria("Finding relevant jobs.");
+    setCandidateAria("Finding relevant jobs.");
 
     const finalCountry = clean(structured.country);
     const primaryLocation = structured.location[0];
@@ -813,13 +967,13 @@ form?.addEventListener("submit", async (e) => {
       setStatus("Saved · recommendation ready");
     }
 
-    setAria("Recommendation complete.");
+    setCandidateAria("Recommendation complete.");
     if (lastSaved) lastSaved.textContent = `Saved ${nowStamp()}`;
     showToast("Recommendation ready.");
   } catch (err) {
     console.error(err);
     setStatus("Error");
-    setAria("Something went wrong.");
+    setCandidateAria("Something went wrong.");
     clearParsedProfile();
     setJobsUI({
       state: "error",
@@ -832,9 +986,126 @@ form?.addEventListener("submit", async (e) => {
   }
 });
 
-populateLocationOptions(clean(jobCountry?.value));
+/* -------------------------
+   Employer submit
+------------------------- */
+
+jobPostForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  if (!jobPostForm.reportValidity()) {
+    showToast("Please complete the form and keep consent checked.");
+    return;
+  }
+
+  const rawTitle = clean(jobTitle?.value);
+  const rawDescription = clean(jobDescription?.value);
+  const rawRequirements = clean(jobRequirements?.value);
+  const rawBenefits = clean(jobBenefits?.value);
+  const structured = getEmployerStructuredFields();
+
+  if (!rawTitle || !rawDescription) {
+    showToast("Please provide at least a job title and job description.");
+    return;
+  }
+
+  if (!structured.country || !structured.location.length) {
+    showToast("Please select a country and location.");
+    return;
+  }
+
+  try {
+    if (jobPostSubmitBtn) jobPostSubmitBtn.disabled = true;
+
+    setStatus("Normalizing with AI…");
+    setEmployerAria("Normalizing the job post.");
+    if (jobPostStatusText) {
+      jobPostStatusText.textContent = "Normalizing job post and preparing job-bank entry...";
+    }
+
+    const normalized = await normalizeJobPost(buildEmployerNormalizerPayload());
+    renderEmployerParsedProfile(normalized);
+
+    const submissionId = randomId("jp");
+
+    const payload = {
+      submission_id: submissionId,
+      source_type: "job_post",
+      poster_type: "company",
+
+      company_name: clean(companyName?.value),
+      company_website: clean(companyWebsite?.value) || null,
+      contact_email: clean(contactEmail?.value) || null,
+
+      raw_job_title: anonymizeText(rawTitle),
+      raw_job_description: anonymizeText(rawDescription),
+      raw_requirements: rawRequirements ? anonymizeText(rawRequirements) : null,
+      raw_benefits: rawBenefits ? anonymizeText(rawBenefits) : null,
+
+      language: clean(normalized?.language) || null,
+      search_country: clean(normalized?.search_country || structured.country) || null,
+      user_country: structured.country || null,
+      user_location: structured.location[0] || null,
+
+      normalized_role: clean(normalized?.normalized_role) || null,
+      normalized_roles: asArray(normalized?.normalized_roles),
+      portal_query_role: clean(normalized?.portal_query_role) || null,
+      jobindex_query: clean(normalized?.jobindex_query) || null,
+      stepstone_query: clean(normalized?.stepstone_query) || null,
+
+      location: asArray(normalized?.location).length ? asArray(normalized?.location) : structured.location,
+      skills: [...new Set([...structured.skills, ...asArray(normalized?.skills)])],
+      industries: [...new Set([structured.industry, ...asArray(normalized?.industries)].filter(Boolean))],
+      education: [...new Set([...structured.education, ...asArray(normalized?.education)])],
+      languages: [...new Set([...structured.languages, ...asArray(normalized?.languages)])],
+      years_experience: normalized?.years_experience ?? structured.yearsExperience,
+      seniority: clean(normalized?.seniority || structured.seniority) || null,
+      summary: clean(normalized?.summary) || null,
+
+      employment_type: clean(normalized?.employment_type || structured.employmentType) || null,
+      workplace_type: clean(normalized?.workplace_type || structured.workplaceType) || null,
+      department: clean(normalized?.department || structured.industry) || null,
+      responsibilities: asArray(normalized?.responsibilities),
+      requirements: asArray(normalized?.requirements),
+      nice_to_have: asArray(normalized?.nice_to_have),
+      benefits: asArray(normalized?.benefits),
+    };
+
+    await insertJobPost(payload);
+
+    if (jobPostStatusText) jobPostStatusText.textContent = "Job post saved to the job bank.";
+    if (jobPostLastSaved) jobPostLastSaved.textContent = `Saved ${nowStamp()}`;
+    setStatus("Saved · job bank updated");
+    setEmployerAria("Job post saved successfully.");
+    showToast("Job post saved");
+  } catch (err) {
+    console.error(err);
+    setStatus("Error");
+    setEmployerAria("Something went wrong.");
+    if (jobPostStatusText) {
+      jobPostStatusText.textContent = "Could not save the job post right now. Please try again.";
+    }
+    showToast(err?.message ? `Error: ${err.message}` : "Something went wrong.");
+  } finally {
+    if (jobPostSubmitBtn) jobPostSubmitBtn.disabled = false;
+  }
+});
+
+/* -------------------------
+   Init
+------------------------- */
+
+populateLocationOptions(location, clean(jobCountry?.value));
+populateLocationOptions(jobPostLocation, clean(jobPostCountry?.value));
+
 setRatingEnabled(false, "Rate after recommendations appear.");
-updatePreview();
+updateCandidateCounter();
+updateEmployerCounter();
+
 clearParsedProfile();
+clearEmployerParsedProfile();
 setJobsUI({ state: "idle" });
-setStatus("Thesis Prototype v1");
+
+if (jobPostStatusText) jobPostStatusText.textContent = "Ready to save a job post.";
+
+switchMode("candidate");
