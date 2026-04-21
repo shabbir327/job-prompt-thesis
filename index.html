@@ -6,7 +6,7 @@
   <title>Job Prompt Studio</title>
   <meta
     name="description"
-    content="Job Prompt Studio (JPS) is an academic research prototype for AI-based job recommendation and CV understanding."
+    content="Job Prompt Studio (JPS) is an academic research prototype for AI-based job recommendation, CV understanding, and employer-side job posting."
   />
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
@@ -25,236 +25,519 @@
       <div class="panel">
         <div class="top">
           <p class="kicker">Academic research prototype</p>
-          <h2 class="title">Find career directions from your prompt and CV.</h2>
+          <h2 class="title">Explore jobs or build a research job bank.</h2>
 
           <p class="subtitle subtitleWide">
             <strong>Job Prompt Studio (JPS)</strong> is a thesis prototype from the
             <strong>University of Southern Denmark (SDU)</strong> for research on
-            AI-based job recommendation and CV understanding.
+            AI-based job recommendation, CV understanding, and structured job-post normalization.
           </p>
 
           <p class="subtitle subtitleWide">
-            You can describe the role you want, upload your PDF CV, or use both together.
-            Using both usually gives the best recommendation quality.
+            Use <strong>Candidate mode</strong> to get job recommendations from your prompt and CV,
+            or use <strong>Employer / HR mode</strong> to store structured job posts in the research job bank.
           </p>
 
+          <div class="modeSwitch" role="tablist" aria-label="Select mode">
+            <button type="button" id="candidateModeBtn" class="modeBtn active">Candidate</button>
+            <button type="button" id="employerModeBtn" class="modeBtn">Employer / HR</button>
+          </div>
+        </div>
+
+        <!-- Candidate View -->
+        <div id="candidateView">
           <p class="subtitle subtitleWide supportNote">
-            <strong>Current coverage:</strong> job search recommendations currently support
+            <strong>Current coverage:</strong> candidate job search recommendations currently support
             <strong>Denmark</strong> only.
           </p>
-        </div>
 
-        <form id="jobForm" autocomplete="on">
-          <div class="field">
-            <label for="role">1) What job are you looking for?</label>
-            <input
-              id="role"
-              name="role"
-              type="text"
-              placeholder="e.g., Data Scientist, Software Engineer, HR Specialist"
-              maxlength="120"
-            />
-          </div>
-
-          <div class="field">
-            <label for="experience">2) Past experience & interests</label>
-            <textarea
-              id="experience"
-              name="experience"
-              placeholder="Write a few lines about your experience, strengths, tools, industries, and what kind of work excites you."
-              maxlength="1200"
-            ></textarea>
-          </div>
-
-          <div class="grid2">
+          <form id="jobForm" autocomplete="on">
             <div class="field">
-              <label for="education">3) Education</label>
+              <label for="role">1) What job are you looking for?</label>
               <input
-                id="education"
-                name="education"
+                id="role"
+                name="role"
                 type="text"
-                placeholder="e.g., MSc Data Science, BSc Computer Science"
+                placeholder="e.g., Data Scientist, Software Engineer, HR Specialist"
+                maxlength="120"
+              />
+            </div>
+
+            <div class="field">
+              <label for="experience">2) Past experience & interests</label>
+              <textarea
+                id="experience"
+                name="experience"
+                placeholder="Write a few lines about your experience, strengths, tools, industries, and what kind of work excites you."
+                maxlength="1200"
+              ></textarea>
+            </div>
+
+            <div class="grid2">
+              <div class="field">
+                <label for="education">3) Education</label>
+                <input
+                  id="education"
+                  name="education"
+                  type="text"
+                  placeholder="e.g., MSc Data Science, BSc Computer Science"
+                  maxlength="200"
+                />
+              </div>
+
+              <div class="field">
+                <label for="yearsExperience">4) Years of experience</label>
+                <input
+                  id="yearsExperience"
+                  name="yearsExperience"
+                  type="number"
+                  min="0"
+                  max="60"
+                  step="0.5"
+                  placeholder="e.g., 3"
+                />
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="skills">5) Skills</label>
+              <input
+                id="skills"
+                name="skills"
+                type="text"
+                placeholder="e.g., Python, SQL, Power BI, Project Management"
+                maxlength="400"
+              />
+              <p class="fieldNote">Separate skills with commas.</p>
+            </div>
+
+            <div class="field">
+              <label for="languages">6) Languages</label>
+              <input
+                id="languages"
+                name="languages"
+                type="text"
+                placeholder="e.g., English, Danish, German"
                 maxlength="200"
               />
+              <p class="fieldNote">Separate languages with commas.</p>
+            </div>
+
+            <div class="grid2">
+              <div class="field">
+                <label for="jobCountry">7) Job country</label>
+                <select id="jobCountry" name="jobCountry" class="styledSelect">
+                  <option value="">Select country</option>
+                  <option value="DK" selected>Denmark</option>
+                </select>
+                <p class="fieldNote">
+                  The system currently supports job search in <strong>Denmark</strong> only.
+                </p>
+              </div>
+
+              <div class="field">
+                <label for="location">8) Preferred job location</label>
+                <select id="location" name="location" class="styledSelect">
+                  <option value="">Select location</option>
+                </select>
+                <p class="fieldNote">
+                  Only supported cities and regions are shown for the selected country.
+                </p>
+              </div>
             </div>
 
             <div class="field">
-              <label for="yearsExperience">4) Years of experience</label>
+              <label for="cvFile">9) Upload your CV (optional)</label>
               <input
-                id="yearsExperience"
-                name="yearsExperience"
-                type="number"
-                min="0"
-                max="60"
-                step="0.5"
-                placeholder="e.g., 3"
+                id="cvFile"
+                name="cvFile"
+                type="file"
+                accept=".pdf,application/pdf"
               />
-            </div>
-          </div>
-
-          <div class="field">
-            <label for="skills">5) Skills</label>
-            <input
-              id="skills"
-              name="skills"
-              type="text"
-              placeholder="e.g., Python, SQL, Power BI, Project Management"
-              maxlength="400"
-            />
-            <p class="fieldNote">Separate skills with commas.</p>
-          </div>
-
-          <div class="field">
-            <label for="languages">6) Languages</label>
-            <input
-              id="languages"
-              name="languages"
-              type="text"
-              placeholder="e.g., English, Danish, German"
-              maxlength="200"
-            />
-            <p class="fieldNote">Separate languages with commas.</p>
-          </div>
-
-          <div class="grid2">
-            <div class="field">
-              <label for="jobCountry">7) Job country</label>
-              <select id="jobCountry" name="jobCountry" class="styledSelect">
-                <option value="">Select country</option>
-                <option value="DK" selected>Denmark</option>
-              </select>
               <p class="fieldNote">
-                The system currently supports job search in <strong>Denmark</strong> only.
+                Accepted format: PDF only. If uploaded, the CV will be OCR-processed,
+                privacy-redacted, and parsed together with your input.
+              </p>
+            </div>
+
+            <div class="field uploadInfo">
+              <label>Privacy-aware parsing</label>
+              <p class="fieldNote">
+                Uploaded CVs are processed through OCR and privacy redaction before parsing.
+                Direct identifiers such as name, email, phone number, date of birth,
+                address, and URLs are masked before AI-based extraction.
               </p>
             </div>
 
             <div class="field">
-              <label for="location">8) Preferred job location</label>
-              <select id="location" name="location" class="styledSelect">
-                <option value="">Select location</option>
-              </select>
-              <p class="fieldNote">
-                Only supported cities and regions are shown for the selected country.
-              </p>
-            </div>
-          </div>
-
-          <div class="field">
-            <label for="cvFile">9) Upload your CV (optional)</label>
-            <input
-              id="cvFile"
-              name="cvFile"
-              type="file"
-              accept=".pdf,application/pdf"
-            />
-            <p class="fieldNote">
-              Accepted format: PDF only. If uploaded, the CV will be OCR-processed,
-              privacy-redacted, and parsed together with your input.
-            </p>
-          </div>
-
-          <div class="field uploadInfo">
-            <label>Privacy-aware parsing</label>
-            <p class="fieldNote">
-              Uploaded CVs are processed through OCR and privacy redaction before parsing.
-              Direct identifiers such as name, email, phone number, date of birth,
-              address, and URLs are masked before AI-based extraction.
-            </p>
-          </div>
-
-          <div class="field">
-            <label class="consent">
-              <input id="consent" type="checkbox" required checked />
-              <span>
-                I consent to storing this information for educational and academic research purposes.
-                <span class="consent-sub">
-                  You may withdraw by contacting the research owner.
+              <label class="consent">
+                <input id="consent" type="checkbox" required checked />
+                <span>
+                  I consent to storing this information for educational and academic research purposes.
+                  <span class="consent-sub">
+                    You may withdraw by contacting the research owner.
+                  </span>
                 </span>
-              </span>
-            </label>
-          </div>
-
-          <div class="actions">
-            <div class="hint">
-              Tip: using both a role description and a CV usually improves recommendation quality.
+              </label>
             </div>
 
-            <div class="btnRow">
-              <button class="btn" type="button" id="resetBtn">Reset</button>
-              <button class="btn primary" type="submit" id="submitBtn">Get recommendation</button>
+            <div class="actions">
+              <div class="hint">
+                Tip: using both a role description and a CV usually improves recommendation quality.
+              </div>
+
+              <div class="btnRow">
+                <button class="btn" type="button" id="resetBtn">Reset</button>
+                <button class="btn primary" type="submit" id="submitBtn">Get recommendation</button>
+              </div>
+            </div>
+
+            <span class="sr-only" aria-live="polite" id="ariaLive"></span>
+          </form>
+        </div>
+
+        <!-- Employer View -->
+        <div id="employerView" class="hiddenView">
+          <p class="subtitle subtitleWide supportNote">
+            <strong>Current coverage:</strong> employer job-post normalization currently supports
+            <strong>Denmark</strong> and <strong>Germany</strong>.
+          </p>
+
+          <form id="jobPostForm" autocomplete="on">
+            <div class="grid2">
+              <div class="field">
+                <label for="companyName">1) Company name</label>
+                <input
+                  id="companyName"
+                  name="companyName"
+                  type="text"
+                  placeholder="e.g., Novo Nordisk, LEGO, Maersk"
+                  maxlength="160"
+                  required
+                />
+              </div>
+
+              <div class="field">
+                <label for="jobTitle">2) Job title</label>
+                <input
+                  id="jobTitle"
+                  name="jobTitle"
+                  type="text"
+                  placeholder="e.g., Data Scientist, HR Business Partner"
+                  maxlength="160"
+                  required
+                />
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="jobDescription">3) Job description</label>
+              <textarea
+                id="jobDescription"
+                name="jobDescription"
+                placeholder="Describe the role, responsibilities, team, and what the company is looking for."
+                maxlength="4000"
+                rows="8"
+                required
+              ></textarea>
+            </div>
+
+            <div class="grid2">
+              <div class="field">
+                <label for="jobRequirements">4) Requirements</label>
+                <textarea
+                  id="jobRequirements"
+                  name="jobRequirements"
+                  placeholder="Required qualifications, education, skills, and experience."
+                  maxlength="2000"
+                  rows="6"
+                ></textarea>
+              </div>
+
+              <div class="field">
+                <label for="jobBenefits">5) Benefits</label>
+                <textarea
+                  id="jobBenefits"
+                  name="jobBenefits"
+                  placeholder="Benefits, perks, flexibility, and other advantages."
+                  maxlength="2000"
+                  rows="6"
+                ></textarea>
+              </div>
+            </div>
+
+            <div class="grid2">
+              <div class="field">
+                <label for="jobPostCountry">6) Job country</label>
+                <select id="jobPostCountry" name="jobPostCountry" class="styledSelect">
+                  <option value="">Select country</option>
+                  <option value="DK" selected>Denmark</option>
+                  <option value="DE">Germany</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="jobPostLocation">7) Job location</label>
+                <select id="jobPostLocation" name="jobPostLocation" class="styledSelect">
+                  <option value="">Select location</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid2">
+              <div class="field">
+                <label for="employmentType">8) Employment type</label>
+                <select id="employmentType" name="employmentType" class="styledSelect">
+                  <option value="">Select employment type</option>
+                  <option value="full_time">Full-time</option>
+                  <option value="part_time">Part-time</option>
+                  <option value="contract">Contract</option>
+                  <option value="internship">Internship</option>
+                  <option value="student">Student</option>
+                  <option value="freelance">Freelance</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="workplaceType">9) Workplace type</label>
+                <select id="workplaceType" name="workplaceType" class="styledSelect">
+                  <option value="">Select workplace type</option>
+                  <option value="onsite">On-site</option>
+                  <option value="hybrid">Hybrid</option>
+                  <option value="remote">Remote</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid2">
+              <div class="field">
+                <label for="jobEducation">10) Education</label>
+                <input
+                  id="jobEducation"
+                  name="jobEducation"
+                  type="text"
+                  placeholder="e.g., Bachelor's, Master's, Vocational"
+                  maxlength="300"
+                />
+                <p class="fieldNote">Separate items with commas.</p>
+              </div>
+
+              <div class="field">
+                <label for="jobYearsExperience">11) Years of experience</label>
+                <input
+                  id="jobYearsExperience"
+                  name="jobYearsExperience"
+                  type="number"
+                  min="0"
+                  max="60"
+                  step="0.5"
+                  placeholder="e.g., 3"
+                />
+              </div>
+            </div>
+
+            <div class="grid2">
+              <div class="field">
+                <label for="jobSkills">12) Skills</label>
+                <input
+                  id="jobSkills"
+                  name="jobSkills"
+                  type="text"
+                  placeholder="e.g., Python, SQL, Communication, Recruitment"
+                  maxlength="500"
+                />
+                <p class="fieldNote">Separate items with commas.</p>
+              </div>
+
+              <div class="field">
+                <label for="jobLanguages">13) Languages</label>
+                <input
+                  id="jobLanguages"
+                  name="jobLanguages"
+                  type="text"
+                  placeholder="e.g., English, Danish, German"
+                  maxlength="300"
+                />
+                <p class="fieldNote">Separate items with commas.</p>
+              </div>
+            </div>
+
+            <div class="grid2">
+              <div class="field">
+                <label for="jobSeniority">14) Seniority</label>
+                <select id="jobSeniority" name="jobSeniority" class="styledSelect">
+                  <option value="">Select seniority</option>
+                  <option value="junior">Junior</option>
+                  <option value="mid">Mid</option>
+                  <option value="senior">Senior</option>
+                  <option value="lead">Lead</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="jobIndustry">15) Industry / department</label>
+                <input
+                  id="jobIndustry"
+                  name="jobIndustry"
+                  type="text"
+                  placeholder="e.g., Pharma, Logistics, HR, IT"
+                  maxlength="200"
+                />
+              </div>
+            </div>
+
+            <div class="grid2">
+              <div class="field">
+                <label for="contactEmail">16) Contact email</label>
+                <input
+                  id="contactEmail"
+                  name="contactEmail"
+                  type="email"
+                  placeholder="e.g., hr@company.com"
+                  maxlength="200"
+                />
+              </div>
+
+              <div class="field">
+                <label for="companyWebsite">17) Company website</label>
+                <input
+                  id="companyWebsite"
+                  name="companyWebsite"
+                  type="url"
+                  placeholder="https://company.com"
+                  maxlength="300"
+                />
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="consent">
+                <input id="jobPostConsent" type="checkbox" required checked />
+                <span>
+                  I consent to storing this job post for educational and academic research purposes.
+                  <span class="consent-sub">
+                    The job post may be normalized and added to the research job bank.
+                  </span>
+                </span>
+              </label>
+            </div>
+
+            <div class="actions">
+              <div class="hint">
+                Tip: free text plus structured fields usually gives better normalized job-post data.
+              </div>
+
+              <div class="btnRow">
+                <button class="btn" type="button" id="jobPostResetBtn">Reset</button>
+                <button class="btn primary" type="submit" id="jobPostSubmitBtn">Save job post</button>
+              </div>
+            </div>
+
+            <span class="sr-only" aria-live="polite" id="jobPostAriaLive"></span>
+          </form>
+        </div>
+      </div>
+
+      <!-- Candidate Results -->
+      <aside id="candidateResults" class="panel summary" aria-label="Recommendation results">
+        <div class="top">
+          <p class="kicker">Results</p>
+          <h2 class="title titleSmall">Recommended jobs and feedback.</h2>
+          <p class="subtitle subtitleWide">
+            Click <b>Get recommendation</b> to fetch matching jobs and then rate how useful they are.
+          </p>
+        </div>
+
+        <div class="mini">
+          <div class="card">
+            <h3>Suggested jobs</h3>
+
+            <p id="jobsHint" class="lockedHint">
+              Click <b>Get recommendation</b> to fetch matching jobs.
+            </p>
+
+            <p id="jobsStatus" class="lockedHint" style="display:none;"></p>
+
+            <div id="jobsSkeleton" class="jobsList" style="display:none;">
+              <div class="skeletonCard"></div>
+              <div class="skeletonCard"></div>
+              <div class="skeletonCard"></div>
+            </div>
+
+            <div id="jobsList" class="jobsList" style="display:none;"></div>
+
+            <p class="lockedHint" style="margin-top:10px;">
+              <a
+                id="jobindexAllLink"
+                href="#"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="subLink"
+              >
+                View all results on the source portal →
+              </a>
+            </p>
+          </div>
+
+          <div class="card ratingCard">
+            <h3>Rate these recommendations</h3>
+            <p class="fieldNote">
+              How useful were the recommended jobs?
+            </p>
+
+            <div class="ratingWrap">
+              <label for="recommendationRating" class="ratingLabel">Rating</label>
+              <select id="recommendationRating" name="recommendationRating" class="styledSelect ratingSelect" disabled>
+                <option value="">Select rating</option>
+                <option value="1">1 - Very poor</option>
+                <option value="2">2 - Poor</option>
+                <option value="3">3 - Neutral</option>
+                <option value="4">4 - Good</option>
+                <option value="5">5 - Excellent</option>
+              </select>
+              <p id="ratingStatus" class="ratingStatus">Rate after recommendations appear.</p>
             </div>
           </div>
+        </div>
 
-          <span class="sr-only" aria-live="polite" id="ariaLive"></span>
-        </form>
-      </div>
+        <div class="meta">
+          <span id="charCount">0 / 1200</span>
+          <span id="lastSaved">Ready</span>
+        </div>
+      </aside>
 
-          <aside class="panel summary" aria-label="Recommendation results">
-      <div class="top">
-        <p class="kicker">Results</p>
-        <h2 class="title titleSmall">Recommended jobs and feedback.</h2>
-        <p class="subtitle subtitleWide">
-          Click <b>Get recommendation</b> to fetch matching jobs and then rate how useful they are.
-        </p>
-      </div>
-    
-      <div class="mini">
-        <div class="card">
-          <h3>Suggested jobs</h3>
-    
-          <p id="jobsHint" class="lockedHint">
-            Click <b>Get recommendation</b> to fetch matching jobs.
-          </p>
-    
-          <p id="jobsStatus" class="lockedHint" style="display:none;"></p>
-    
-          <div id="jobsSkeleton" class="jobsList" style="display:none;">
-            <div class="skeletonCard"></div>
-            <div class="skeletonCard"></div>
-            <div class="skeletonCard"></div>
-          </div>
-    
-          <div id="jobsList" class="jobsList" style="display:none;"></div>
-    
-          <p class="lockedHint" style="margin-top:10px;">
-            <a
-              id="jobindexAllLink"
-              href="#"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="subLink"
-            >
-              View all results on the source portal →
-            </a>
+      <!-- Employer Results -->
+      <aside id="employerResults" class="panel summary hiddenView" aria-label="Job post normalization results">
+        <div class="top">
+          <p class="kicker">Results</p>
+          <h2 class="title titleSmall">Normalized job post summary.</h2>
+          <p class="subtitle subtitleWide">
+            The job post is cleaned into structured fields and stored in the job bank.
           </p>
         </div>
-    
-        <div class="card ratingCard">
-          <h3>Rate these recommendations</h3>
-          <p class="fieldNote">
-            How useful were the recommended jobs?
-          </p>
-    
-          <div class="ratingWrap">
-            <label for="recommendationRating" class="ratingLabel">Rating</label>
-            <select id="recommendationRating" name="recommendationRating" class="styledSelect ratingSelect" disabled>
-              <option value="">Select rating</option>
-              <option value="1">1 - Very poor</option>
-              <option value="2">2 - Poor</option>
-              <option value="3">3 - Neutral</option>
-              <option value="4">4 - Good</option>
-              <option value="5">5 - Excellent</option>
-            </select>
-            <p id="ratingStatus" class="ratingStatus">Rate after recommendations appear.</p>
+
+        <div class="mini">
+          <div class="card">
+            <h3>Normalization preview</h3>
+            <p id="jobPostParsedHint" class="lockedHint">
+              Save a job post to generate a structured normalized summary.
+            </p>
+            <div id="jobPostParsedProfile" style="display:none;"></div>
+          </div>
+
+          <div class="card">
+            <h3>Job bank status</h3>
+            <p id="jobPostStatusText" class="lockedHint">
+              Ready to save a job post.
+            </p>
           </div>
         </div>
-      </div>
-    
-      <div class="meta">
-        <span id="charCount">0 / 1200</span>
-        <span id="lastSaved">Ready</span>
-      </div>
-    </aside>
+
+        <div class="meta">
+          <span id="jobPostCharCount">0 / 4000</span>
+          <span id="jobPostLastSaved">Ready</span>
+        </div>
+      </aside>
     </section>
   </div>
 
@@ -268,7 +551,7 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite">
     <span class="dot" aria-hidden="true"></span>
-    <span id="toastText">Copied</span>
+    <span id="toastText">Saved</span>
   </div>
 
   <script type="module" src="./js/app.js"></script>
