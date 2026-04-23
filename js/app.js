@@ -371,16 +371,12 @@ function jobBoardUrlForResult(queryText, locationText = "", portal = "jobindex")
 }
 
 async function insertCandidateProfile(payload) {
-  console.log("candidate_profiles payload before insert:", payload);
   console.log("candidate_profiles payload JSON:", JSON.stringify(payload, null, 2));
 
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("candidate_profiles")
-    .insert([payload])
-    .select();
+    .insert([payload]);
 
-  console.log("candidate_profiles insert data:", data);
-  console.log("candidate_profiles insert error full:", error);
   console.log("candidate_profiles insert error JSON:", JSON.stringify(error, null, 2));
 
   if (error) {
