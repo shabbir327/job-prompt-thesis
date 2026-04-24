@@ -386,11 +386,16 @@ async function insertCandidateProfile(payload) {
   return { submission_id: payload.submission_id };
 }
 
-async function updateRecommendationRating(submissionId, ratingValue) {
+async function saveRecommendationRating(submissionId, participantId, ratingValue) {
   const { error } = await supabase
-    .from("candidate_profiles")
-    .update({ recommendation_rating: ratingValue })
-    .eq("submission_id", submissionId);
+    .from("candidate_feedback")
+    .insert([
+      {
+        submission_id: submissionId,
+        participant_id: participantId,
+        recommendation_rating: ratingValue,
+      },
+    ]);
 
   if (error) throw error;
 
@@ -853,7 +858,7 @@ recommendationRating?.addEventListener("change", async () => {
   if (!latestRecommendationReady || !latestSubmissionId || !ratingValue) return;
 
   try {
-    await updateRecommendationRating(latestSubmissionId, ratingValue);
+    await saveRecommendationRating(latestSubmissionId, participantId, ratingValue);
     if (ratingStatus) ratingStatus.textContent = "Thanks — your rating has been saved.";
     showToast("Rating saved");
   } catch (err) {
