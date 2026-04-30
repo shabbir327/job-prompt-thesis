@@ -21,9 +21,33 @@ async function protectAdminPage() {
 }
 
 function normalizeList(value) {
+  if (!value) return [];
+
+  const raw = String(value).trim();
+
+  // ✅ 1. Try JSON parsing first
+  if (raw.startsWith("[") && raw.endsWith("]")) {
+    try {
+      const parsed = JSON.parse(raw);
+
+      if (Array.isArray(parsed)) {
+        return [
+          ...new Set(
+            parsed
+              .map((v) => String(v).trim().toLowerCase())
+              .filter(Boolean)
+          ),
+        ];
+      }
+    } catch (e) {
+      console.warn("Invalid JSON array input, falling back:", e);
+    }
+  }
+
+  // ✅ 2. Fallback to comma / semicolon split
   return [
     ...new Set(
-      String(value || "")
+      raw
         .split(/[;,]/)
         .map((s) => s.trim().toLowerCase())
         .filter(Boolean)
