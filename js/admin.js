@@ -74,6 +74,48 @@ function parseRoleExperienceText(value) {
   const raw = String(value || "").trim();
   if (!raw) return null;
 
+  // Supports JSON input:
+  // [{"role":"Frontend Developer","years":20,"evidence":"..."}]
+  if (raw.startsWith("[") && raw.endsWith("]")) {
+    try {
+      const parsed = JSON.parse(raw);
+
+      if (Array.isArray(parsed)) {
+        const normalized = parsed
+          .map((item) => {
+            if (!item || typeof item !== "object") return null;
+
+            const role = String(item.role || "").trim().toLowerCase();
+            const evidence = String(item.evidence || "").trim();
+            const yearsRaw = item.years;
+
+            let years = null;
+            if (typeof yearsRaw === "number" && Number.isFinite(yearsRaw)) {
+              years = yearsRaw;
+            } else if (typeof yearsRaw === "string" && yearsRaw.trim()) {
+              const parsedYears = Number(yearsRaw);
+              years = Number.isFinite(parsedYears) ? parsedYears : null;
+            }
+
+            if (!role) return null;
+
+            return {
+              role,
+              years,
+              evidence,
+            };
+          })
+          .filter(Boolean);
+
+        return normalized.length ? normalized : null;
+      }
+    } catch (e) {
+      console.warn("Invalid role experience JSON, falling back:", e);
+    }
+  }
+
+  // Supports old manual input:
+  // Data Analyst 2 years; Manager 1 year
   const entries = raw
     .split(";")
     .map((item) => item.trim())
@@ -87,7 +129,12 @@ function parseRoleExperienceText(value) {
 
     const role = match[1].trim().toLowerCase();
     const years = Number(match[2]);
-    parsed.push({ role, years });
+
+    parsed.push({
+      role,
+      years,
+      evidence: "",
+    });
   }
 
   return parsed.length ? parsed : null;
