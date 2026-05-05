@@ -3,148 +3,190 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Job Prompt Studio</title>
-  <meta
-    name="description"
-    content="Job Prompt Studio (JPS) is an academic research prototype for AI-based job recommendation, CV understanding, and employer-side job posting."
-  />
+  <title>Job Prompt Studio — AI job matching</title>
+  <meta name="description" content="Academic research prototype for AI-based job recommendation, CV understanding, and employer-side job posting." />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
 
 <body>
-  <div class="pageGlow" aria-hidden="true"></div>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="orb orbA" aria-hidden="true"></div>
+  <div class="orb orbB" aria-hidden="true"></div>
 
-  <div class="wrap">
-    <header class="siteHeader">
-      <a class="brand" href="#" aria-label="Job Prompt Studio home">
-        <span class="logoMark" aria-hidden="true">j</span>
-        <span class="brandText">Job Prompt Studio</span>
-      </a>
+  <header class="siteHeader">
+    <a href="#top" class="brand" aria-label="Job Prompt Studio home">
+      <span class="brandGlyph">jps</span>
+      <span>Job Prompt Studio</span>
+    </a>
 
-      <nav class="headerNav" aria-label="Main navigation">
-        <a href="#jobForm">For candidates</a>
-        <a href="#jobPostForm">For employers</a>
-        <a href="#resultsAnchor">Results</a>
-      </nav>
+    <nav class="mainNav" aria-label="Main navigation">
+      <a href="#candidateView">Candidates</a>
+      <a href="#employerView">Employers</a>
+      <a href="#howItWorks">How it works</a>
+    </nav>
 
-      <div class="pill" id="statusPill">Thesis Prototype v1</div>
-    </header>
+    <div class="pill" id="statusPill">Thesis Prototype v1</div>
+  </header>
 
-    <section class="heroIntro" aria-labelledby="pageTitle">
+  <main id="top">
+    <section class="hero">
       <div class="heroCopy">
-        <p class="eyebrow">Academic NLP job matching prototype</p>
-        <h1 id="pageTitle">AI job matching for candidates and employers.</h1>
+        <p class="eyebrow">NLP-powered job matching</p>
+        <h1>AI job matching for every kind of career path.</h1>
         <p class="lead">
-          Describe your background, upload a CV, or post a role. JPS turns messy career text into structured matching signals and recommends relevant jobs by meaning, not only keywords.
+          Search by meaning, not just keywords. Describe your background, upload a CV, or post a role — JPS extracts structured signals and connects candidates with relevant job opportunities.
         </p>
+
         <div class="heroActions">
-          <a class="btn primary" href="#jobForm">Start matching</a>
-          <a class="btn ghost" href="#jobPostForm">Post a role</a>
+          <a class="btn btnPrimary" href="#matcher">Try the matcher</a>
+          <a class="btn btnGhost" href="#howItWorks">See how it works</a>
+        </div>
+
+        <div class="trustRow" aria-label="Prototype capabilities">
+          <span>Prompt parsing</span>
+          <span>CV understanding</span>
+          <span>Job bank matching</span>
         </div>
       </div>
 
-      <aside class="heroVisual" aria-label="Matching preview">
-        <img src="./hero-workers.jpg" alt="People working across different roles" />
-        <div class="floatingMetric metricOne">
-          <span>Semantic match</span>
-          <strong>92%</strong>
+      <div class="heroStage" aria-label="Job matching preview">
+        <img src="./hero-workers.jpg" alt="People working in different professional contexts" />
+
+        <div class="heroSearchCard glassCard">
+          <div class="miniLabel">Live semantic search</div>
+          <p>“Data analyst, SQL, Python, Copenhagen, 2 years experience”</p>
+          <div class="searchPulse"><span></span><span></span><span></span></div>
         </div>
-        <div class="floatingMetric metricTwo">
-          <span>Sources</span>
-          <strong>Jobindex + bank</strong>
+
+        <div class="floatingMatch matchTop">
+          <div>
+            <span class="miniLabel">Match</span>
+            <strong>92%</strong>
+          </div>
+          <p>Business Analyst</p>
         </div>
-      </aside>
+
+        <div class="floatingMatch matchBottom">
+          <div>
+            <span class="miniLabel">Source</span>
+            <strong>2</strong>
+          </div>
+          <p>Jobindex + Job Bank</p>
+        </div>
+      </div>
     </section>
 
-    <section class="modeShell" id="resultsAnchor">
-      <div class="modeHeader">
-        <div>
-          <p class="eyebrow">Choose workflow</p>
-          <h2>Search as a candidate or save a job post.</h2>
-        </div>
+    <section class="introCards" aria-label="Project highlights">
+      <article>
+        <span class="cardNumber">01</span>
+        <h2>Candidate search</h2>
+        <p>Combines free-text prompt fields with optional CV parsing to create job-search queries and structured candidate profiles.</p>
+      </article>
+      <article>
+        <span class="cardNumber">02</span>
+        <h2>Employer job bank</h2>
+        <p>Turns job-post text into normalized role, skill, language, seniority, and location data for internal matching.</p>
+      </article>
+      <article>
+        <span class="cardNumber">03</span>
+        <h2>Research feedback</h2>
+        <p>Stores recommendation outcomes and user ratings for thesis evaluation and recommendation-quality analysis.</p>
+      </article>
+    </section>
+
+    <section class="matcherShell" id="matcher">
+      <div class="sectionHeading">
+        <p class="eyebrow">Start matching</p>
+        <h2>One interface, two workflows.</h2>
+        <p>Switch between candidate recommendations and employer job-post normalization. The client logic is unchanged; this is a visual redesign only.</p>
+      </div>
+
+      <div class="modeSwitchWrap">
         <div class="modeSwitch" role="tablist" aria-label="Select mode">
           <button type="button" id="candidateModeBtn" class="modeBtn active">Candidate</button>
           <button type="button" id="employerModeBtn" class="modeBtn">Employer / HR</button>
         </div>
       </div>
 
-      <div class="workspaceGrid">
-        <main class="searchPanel panel">
+      <div class="workspace">
+        <section class="panel inputPanel">
           <div id="candidateView">
-            <div class="panelTop">
+            <div class="panelHeader">
               <p class="eyebrow">Describe what you want</p>
-              <h2>Find work that fits your profile.</h2>
-              <p class="subtitle supportNote">
-                Candidate job search recommendations currently support <strong>Denmark</strong> only.
-              </p>
+              <h2>Find roles that fit your background.</h2>
+              <p class="supportNote"><strong>Current coverage:</strong> candidate job search recommendations currently support <strong>Denmark</strong> only.</p>
             </div>
 
             <form id="jobForm" autocomplete="on">
-              <div class="field featureField">
+              <div class="field heroField">
                 <label for="role">What job are you looking for?</label>
-                <input id="role" name="role" type="text" placeholder="Data Scientist, Software Engineer, HR Specialist" maxlength="120" />
+                <input id="role" name="role" type="text" placeholder="e.g., Data Scientist, Software Engineer, HR Specialist" maxlength="120" />
               </div>
 
-              <div class="field featureField">
+              <div class="field heroField">
                 <label for="experience">Past experience & interests</label>
-                <textarea id="experience" name="experience" placeholder="Tell JPS about your strengths, tools, industries, and the work that excites you." maxlength="1200"></textarea>
+                <textarea id="experience" name="experience" placeholder="Write a few lines about your experience, strengths, tools, industries, and what kind of work excites you." maxlength="1200"></textarea>
               </div>
 
-              <div class="grid2">
+              <div class="formGrid two">
                 <div class="field">
                   <label for="education">Education</label>
-                  <input id="education" name="education" type="text" placeholder="MSc Data Science" maxlength="200" />
+                  <input id="education" name="education" type="text" placeholder="e.g., MSc Data Science" maxlength="200" />
                 </div>
                 <div class="field">
                   <label for="yearsExperience">Years of experience</label>
-                  <input id="yearsExperience" name="yearsExperience" type="number" min="0" max="60" step="0.5" placeholder="3" />
+                  <input id="yearsExperience" name="yearsExperience" type="number" min="0" max="60" step="0.5" placeholder="e.g., 3" />
                 </div>
               </div>
 
-              <div class="grid2">
+              <div class="formGrid two">
                 <div class="field">
                   <label for="skills">Skills</label>
-                  <input id="skills" name="skills" type="text" placeholder="Python, SQL, Power BI" maxlength="400" />
+                  <input id="skills" name="skills" type="text" placeholder="e.g., Python, SQL, Power BI" maxlength="400" />
                   <p class="fieldNote">Separate skills with commas.</p>
                 </div>
                 <div class="field">
                   <label for="languages">Languages</label>
-                  <input id="languages" name="languages" type="text" placeholder="English, Danish, German" maxlength="200" />
+                  <input id="languages" name="languages" type="text" placeholder="e.g., English, Danish, German" maxlength="200" />
                   <p class="fieldNote">Separate languages with commas.</p>
                 </div>
               </div>
 
-              <div class="grid2">
+              <div class="formGrid two">
                 <div class="field">
                   <label for="jobCountry">Job country</label>
                   <select id="jobCountry" name="jobCountry" class="styledSelect">
                     <option value="">Select country</option>
                     <option value="DK" selected>Denmark</option>
                   </select>
+                  <p class="fieldNote">The system currently supports job search in Denmark only.</p>
                 </div>
                 <div class="field">
-                  <label for="location">Preferred location</label>
+                  <label for="location">Preferred job location</label>
                   <select id="location" name="location" class="styledSelect">
                     <option value="">Select location</option>
                   </select>
+                  <p class="fieldNote">Only supported cities and regions are shown.</p>
                 </div>
               </div>
 
-              <div class="field uploadBox">
-                <label for="cvFile">Upload your CV <span>(optional PDF)</span></label>
+              <div class="uploadPanel field">
+                <div>
+                  <label for="cvFile">Upload your CV <span>optional PDF</span></label>
+                  <p class="fieldNote">The CV will be OCR-processed, privacy-redacted, and parsed with your prompt.</p>
+                </div>
                 <input id="cvFile" name="cvFile" type="file" accept=".pdf,application/pdf" />
-                <p class="fieldNote">The CV is OCR-processed, privacy-redacted, and parsed together with your prompt.</p>
               </div>
 
-              <div class="privacyCard">
+              <div class="privacyRibbon">
                 <strong>Privacy-aware parsing</strong>
-                <span>Names, emails, phone numbers, dates of birth, addresses, and URLs are masked before AI extraction.</span>
+                <span>Direct identifiers such as name, email, phone number, date of birth, address, and URLs are masked before AI extraction.</span>
               </div>
 
-              <div class="field">
+              <div class="field consentField">
                 <label class="consent">
                   <input id="consent" type="checkbox" required checked />
                   <span>
@@ -155,10 +197,10 @@
               </div>
 
               <div class="actions">
-                <div class="hint">Using both a role description and a CV usually improves recommendation quality.</div>
+                <div class="hint">Tip: using both a role description and a CV usually improves recommendation quality.</div>
                 <div class="btnRow">
-                  <button class="btn secondary" type="button" id="resetBtn">Reset</button>
-                  <button class="btn primary" type="submit" id="submitBtn">Get recommendation</button>
+                  <button class="btn btnSecondary" type="button" id="resetBtn">Reset</button>
+                  <button class="btn btnPrimary" type="submit" id="submitBtn">Get recommendation</button>
                 </div>
               </div>
 
@@ -167,35 +209,33 @@
           </div>
 
           <div id="employerView" class="hiddenView">
-            <div class="panelTop">
+            <div class="panelHeader">
               <p class="eyebrow">Describe who you need</p>
-              <h2>Normalize a job post into the research job bank.</h2>
-              <p class="subtitle supportNote">
-                Employer job-post normalization currently supports <strong>Denmark</strong> and <strong>Germany</strong>.
-              </p>
+              <h2>Save a structured job post to the research bank.</h2>
+              <p class="supportNote"><strong>Current coverage:</strong> employer job-post normalization currently supports <strong>Denmark</strong> and <strong>Germany</strong>.</p>
             </div>
 
             <form id="jobPostForm" autocomplete="on">
-              <div class="grid2">
+              <div class="formGrid two">
                 <div class="field">
                   <label for="companyName">Company name</label>
-                  <input id="companyName" name="companyName" type="text" placeholder="Novo Nordisk, LEGO, Maersk" maxlength="160" required />
+                  <input id="companyName" name="companyName" type="text" placeholder="e.g., Novo Nordisk, LEGO, Maersk" maxlength="160" required />
                 </div>
                 <div class="field">
                   <label for="jobTitle">Job title</label>
-                  <input id="jobTitle" name="jobTitle" type="text" placeholder="Data Scientist, HR Business Partner" maxlength="160" required />
+                  <input id="jobTitle" name="jobTitle" type="text" placeholder="e.g., Data Scientist, HR Business Partner" maxlength="160" required />
                 </div>
               </div>
 
-              <div class="field featureField">
+              <div class="field heroField">
                 <label for="jobDescription">Job description</label>
                 <textarea id="jobDescription" name="jobDescription" placeholder="Describe the role, responsibilities, team, and what the company is looking for." maxlength="4000" rows="8" required></textarea>
               </div>
 
-              <div class="grid2">
+              <div class="formGrid two">
                 <div class="field">
                   <label for="jobRequirements">Requirements</label>
-                  <textarea id="jobRequirements" name="jobRequirements" placeholder="Required qualifications, skills, and experience." maxlength="2000" rows="6"></textarea>
+                  <textarea id="jobRequirements" name="jobRequirements" placeholder="Required qualifications, education, skills, and experience." maxlength="2000" rows="6"></textarea>
                 </div>
                 <div class="field">
                   <label for="jobBenefits">Benefits</label>
@@ -203,7 +243,7 @@
                 </div>
               </div>
 
-              <div class="grid2">
+              <div class="formGrid two">
                 <div class="field">
                   <label for="jobPostCountry">Job country</label>
                   <select id="jobPostCountry" name="jobPostCountry" class="styledSelect">
@@ -220,7 +260,7 @@
                 </div>
               </div>
 
-              <div class="grid2">
+              <div class="formGrid two">
                 <div class="field">
                   <label for="employmentType">Employment type</label>
                   <select id="employmentType" name="employmentType" class="styledSelect">
@@ -244,29 +284,32 @@
                 </div>
               </div>
 
-              <div class="grid2">
+              <div class="formGrid two">
                 <div class="field">
                   <label for="jobEducation">Education</label>
-                  <input id="jobEducation" name="jobEducation" type="text" placeholder="Bachelor's, Master's" maxlength="300" />
+                  <input id="jobEducation" name="jobEducation" type="text" placeholder="e.g., Bachelor's, Master's" maxlength="300" />
+                  <p class="fieldNote">Separate items with commas.</p>
                 </div>
                 <div class="field">
                   <label for="jobYearsExperience">Years of experience</label>
-                  <input id="jobYearsExperience" name="jobYearsExperience" type="number" min="0" max="60" step="0.5" placeholder="3" />
+                  <input id="jobYearsExperience" name="jobYearsExperience" type="number" min="0" max="60" step="0.5" placeholder="e.g., 3" />
                 </div>
               </div>
 
-              <div class="grid2">
+              <div class="formGrid two">
                 <div class="field">
                   <label for="jobSkills">Skills</label>
-                  <input id="jobSkills" name="jobSkills" type="text" placeholder="Python, SQL, Communication" maxlength="500" />
+                  <input id="jobSkills" name="jobSkills" type="text" placeholder="e.g., Python, SQL, Communication" maxlength="500" />
+                  <p class="fieldNote">Separate items with commas.</p>
                 </div>
                 <div class="field">
                   <label for="jobLanguages">Languages</label>
-                  <input id="jobLanguages" name="jobLanguages" type="text" placeholder="English, Danish, German" maxlength="300" />
+                  <input id="jobLanguages" name="jobLanguages" type="text" placeholder="e.g., English, Danish, German" maxlength="300" />
+                  <p class="fieldNote">Separate items with commas.</p>
                 </div>
               </div>
 
-              <div class="grid2">
+              <div class="formGrid two">
                 <div class="field">
                   <label for="jobSeniority">Seniority</label>
                   <select id="jobSeniority" name="jobSeniority" class="styledSelect">
@@ -279,27 +322,28 @@
                 </div>
                 <div class="field">
                   <label for="jobIndustry">Industry / department</label>
-                  <input id="jobIndustry" name="jobIndustry" type="text" placeholder="Pharma, Logistics, HR, IT" maxlength="200" />
+                  <input id="jobIndustry" name="jobIndustry" type="text" placeholder="e.g., Pharma, Logistics, HR, IT" maxlength="200" />
                 </div>
               </div>
 
-              <div class="grid2">
+              <div class="formGrid two">
                 <div class="field">
                   <label for="contactEmail">Contact email</label>
-                  <input id="contactEmail" name="contactEmail" type="email" placeholder="hr@company.com" maxlength="200" />
+                  <input id="contactEmail" name="contactEmail" type="email" placeholder="e.g., hr@company.com" maxlength="200" />
                 </div>
                 <div class="field">
                   <label for="companyWebsite">Company website</label>
-                  <input id="companyWebsite" name="companyWebsite" type="text" placeholder="https://company.com" maxlength="300" />
+                  <input id="companyWebsite" name="companyWebsite" type="text" placeholder="www.company.com" maxlength="300" />
                 </div>
               </div>
 
               <div class="field">
-                <label for="applicationUrl">Application URL</label>
-                <input id="applicationUrl" name="applicationUrl" type="text" placeholder="https://company.com/careers/job-123" maxlength="500" />
+                <label for="applicationUrl">Application URL <span>optional</span></label>
+                <input id="applicationUrl" name="applicationUrl" type="text" placeholder="www.company.com/careers/job-123" maxlength="500" />
+                <p class="fieldNote">This is the link candidates should open when this job is recommended.</p>
               </div>
 
-              <div class="field">
+              <div class="field consentField">
                 <label class="consent">
                   <input id="jobPostConsent" type="checkbox" required checked />
                   <span>
@@ -310,36 +354,36 @@
               </div>
 
               <div class="actions">
-                <div class="hint">Free text plus structured fields usually gives better normalized job-post data.</div>
+                <div class="hint">Tip: free text plus structured fields usually gives better normalized job-post data.</div>
                 <div class="btnRow">
-                  <button class="btn secondary" type="button" id="jobPostResetBtn">Reset</button>
-                  <button class="btn primary" type="submit" id="jobPostSubmitBtn">Save job post</button>
+                  <button class="btn btnSecondary" type="button" id="jobPostResetBtn">Reset</button>
+                  <button class="btn btnPrimary" type="submit" id="jobPostSubmitBtn">Save job post</button>
                 </div>
               </div>
 
               <span class="sr-only" aria-live="polite" id="jobPostAriaLive"></span>
             </form>
           </div>
-        </main>
+        </section>
 
         <aside id="candidateResults" class="panel resultsPanel" aria-label="Recommendation results">
-          <div class="panelTop">
-            <p class="eyebrow">Live results</p>
+          <div class="panelHeader compact">
+            <p class="eyebrow">Results</p>
             <h2>Recommended jobs.</h2>
-            <p class="subtitle">JPS combines external portal results with your research job bank.</p>
+            <p class="subtitle">Matching results from external search and your internal job bank appear here.</p>
           </div>
 
-          <div class="mini">
-            <div class="card jobsCard">
-              <div class="cardHeaderRow">
+          <div class="resultsStack">
+            <div class="resultCard mainResult">
+              <div class="resultCardHeader">
                 <h3>Suggested jobs</h3>
-                <span class="tinyBadge">Meaning match</span>
+                <span class="tinyBadge">Semantic match</span>
               </div>
 
               <p id="jobsHint" class="lockedHint">Click <b>Get recommendation</b> to fetch matching jobs.</p>
               <p id="jobsStatus" class="lockedHint" style="display:none;"></p>
 
-              <div id="jobsSkeleton" class="jobsList" style="display:none;">
+              <div id="jobsSkeleton" class="jobsList skeletonList" style="display:none;">
                 <div class="skeletonCard"></div>
                 <div class="skeletonCard"></div>
                 <div class="skeletonCard"></div>
@@ -347,14 +391,12 @@
 
               <div id="jobsList" class="jobsList" style="display:none;"></div>
 
-              <p class="lockedHint sourceLinkWrap">
-                <a id="jobindexAllLink" href="#" target="_blank" rel="noopener noreferrer" class="subLink">
-                  View external results on the source portal →
-                </a>
+              <p class="sourceLinkWrap">
+                <a id="jobindexAllLink" href="#" target="_blank" rel="noopener noreferrer" class="subLink">View external results on the source portal →</a>
               </p>
             </div>
 
-            <div class="card ratingCard">
+            <div class="resultCard ratingCard">
               <h3>Rate these recommendations</h3>
               <p class="fieldNote">How useful were the recommended jobs?</p>
               <div class="ratingWrap">
@@ -370,46 +412,74 @@
                 <p id="ratingStatus" class="ratingStatus">Rate after recommendations appear.</p>
               </div>
             </div>
-          </div>
 
-          <div class="meta">
-            <span id="charCount">0 / 1200</span>
-            <span id="lastSaved">Ready</span>
+            <div class="metaBar">
+              <span id="charCount">0 / 1200</span>
+              <span id="lastSaved">Ready</span>
+            </div>
           </div>
         </aside>
 
         <aside id="employerResults" class="panel resultsPanel hiddenView" aria-label="Job post normalization results">
-          <div class="panelTop">
-            <p class="eyebrow">Live results</p>
+          <div class="panelHeader compact">
+            <p class="eyebrow">Results</p>
             <h2>Normalized job post.</h2>
-            <p class="subtitle">The job post is cleaned into structured fields and stored in the job bank.</p>
+            <p class="subtitle">The saved job post becomes structured matching data for the research job bank.</p>
           </div>
 
-          <div class="mini">
-            <div class="card jobsCard">
-              <h3>Normalization preview</h3>
+          <div class="resultsStack">
+            <div class="resultCard mainResult">
+              <div class="resultCardHeader">
+                <h3>Normalization preview</h3>
+                <span class="tinyBadge">Job bank</span>
+              </div>
               <p id="jobPostParsedHint" class="lockedHint">Save a job post to generate a structured normalized summary.</p>
-              <div id="jobPostParsedProfile" style="display:none;"></div>
+              <div id="jobPostParsedProfile" class="parsedProfile" style="display:none;"></div>
             </div>
-            <div class="card ratingCard">
+
+            <div class="resultCard">
               <h3>Job bank status</h3>
               <p id="jobPostStatusText" class="lockedHint">Ready to save a job post.</p>
             </div>
-          </div>
 
-          <div class="meta">
-            <span id="jobPostCharCount">0 / 4000</span>
-            <span id="jobPostLastSaved">Ready</span>
+            <div class="metaBar">
+              <span id="jobPostCharCount">0 / 4000</span>
+              <span id="jobPostLastSaved">Ready</span>
+            </div>
           </div>
         </aside>
       </div>
     </section>
-  </div>
+
+    <section class="howItWorks" id="howItWorks">
+      <div class="sectionHeading left">
+        <p class="eyebrow">Under the hood</p>
+        <h2>From messy text to ranked opportunities.</h2>
+      </div>
+
+      <div class="processGrid">
+        <article>
+          <span>01</span>
+          <h3>Capture intent</h3>
+          <p>The candidate or employer writes naturally instead of selecting from rigid keyword filters.</p>
+        </article>
+        <article>
+          <span>02</span>
+          <h3>Normalize meaning</h3>
+          <p>The system extracts roles, skills, education, languages, seniority, location, and experience signals.</p>
+        </article>
+        <article>
+          <span>03</span>
+          <h3>Rank matches</h3>
+          <p>External search results and internal job-bank posts are merged, deduplicated, and shown as recommendations.</p>
+        </article>
+      </div>
+    </section>
+  </main>
 
   <footer class="footer">
     <p>
-      Job Prompt Studio (JPS) is an academic research prototype developed at the
-      <strong>University of Southern Denmark (SDU)</strong>. Data collected through this interface is used strictly for academic purposes.
+      Job Prompt Studio (JPS) is an academic research prototype developed at the <strong>University of Southern Denmark (SDU)</strong>. Data collected through this interface is used strictly for academic purposes.
     </p>
   </footer>
 
