@@ -125,22 +125,12 @@
           <input id="cvPdfFile" type="file" accept="application/pdf" />
         </div>
 
-        <div>
-          <label for="cv_parser_provider">Provider</label>
-          <select id="cv_parser_provider">
-            <option value="mistral">mistral</option>
-            <option value="openrouter" selected>openrouter</option>
-          </select>
-        </div>
-
-        <div>
-          <label for="cv_parser_model_name">Model Name</label>
-          <select id="cv_parser_model_name">
-            <option value="mistralai/mistral-small-latest" selected>mistral-small-latest</option>
-            <option value="meta-llama/llama-3.1-8b-instruct">Llama 3.1 8B Instruct</option>
-            <option value="google/gemma-3-12b-it">Gemma 3 12B IT</option>
-            <option value="mistral-small-latest">Mistral Direct API</option>
-          </select>
+        <div class="full">
+          <label>3-LLM evaluation suite</label>
+          <div class="preview">Mistral Direct API: mistral-small-latest
+Llama: meta-llama/llama-3.1-8b-instruct via OpenRouter
+Meta: meta-llama/llama-3.3-70b-instruct via OpenRouter</div>
+          <div class="hint">One click runs all three parsers and saves one result row per model.</div>
         </div>
 
         <div>
@@ -162,7 +152,7 @@
         </div>
       </div>
 
-      <button id="parseCvPdfBtn" type="button" class="primary">Parse CV PDF</button>
+      <button id="parseCvPdfBtn" type="button" class="primary">Parse CV PDF with 3 LLMs</button>
       <div id="cvParserStatus" class="status"></div>
       <div id="cvParserPreview" class="preview"></div>
     </section>
@@ -278,22 +268,12 @@
           <input id="jobPdfFile" type="file" accept="application/pdf" />
         </div>
 
-        <div>
-          <label for="parser_provider">Provider</label>
-          <select id="parser_provider">
-            <option value="mistral">mistral</option>
-            <option value="openrouter" selected>openrouter</option>
-          </select>
-        </div>
-
-        <div>
-          <label for="parser_model_name">Model Name</label>
-          <select id="parser_model_name">
-            <option value="mistralai/mistral-small-latest" selected>Mistral Small Latest</option>
-            <option value="meta-llama/llama-3.1-8b-instruct">Llama 3.1 8B Instruct</option>
-            <option value="google/gemma-3-12b-it">Gemma 3 12B IT</option>
-            <option value="mistral-small-latest">Mistral Direct API</option>
-          </select>
+        <div class="full">
+          <label>3-LLM evaluation suite</label>
+          <div class="preview">Mistral Direct API: mistral-small-latest
+Llama: meta-llama/llama-3.1-8b-instruct via OpenRouter
+Meta: meta-llama/llama-3.3-70b-instruct via OpenRouter</div>
+          <div class="hint">One click runs all three parsers and saves one result row per model.</div>
         </div>
 
         <div>
@@ -307,7 +287,7 @@
           <input id="parser_jobid" value="000" />
         </div>
 
-      <button id="parseJobPdfBtn" type="button" class="primary">Parse Job PDF</button>
+      <button id="parseJobPdfBtn" type="button" class="primary">Parse Job PDF with 3 LLMs</button>
       <div id="parserStatus" class="status"></div>
       <div id="parserPreview" class="preview"></div>
     </section>
