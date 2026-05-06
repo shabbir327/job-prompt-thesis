@@ -3,6 +3,24 @@ import { supabase } from "./supabaseClient.js";
 const BASE_PATH = "/job-prompt-thesis";
 const SUPABASE_FUNCTIONS_BASE = "https://vjwcpzprgqzbjmwjrfrc.supabase.co/functions/v1";
 
+const THREE_LLM_PARSE_SUITE = [
+  {
+    label: "Mistral Direct API",
+    provider: "mistral",
+    modelName: "mistral-small-latest",
+  },
+  {
+    label: "Llama 3.1 8B Instruct",
+    provider: "openrouter",
+    modelName: "meta-llama/llama-3.1-8b-instruct",
+  },
+  {
+    label: "Meta Llama 3.3 70B Instruct",
+    provider: "openrouter",
+    modelName: "meta-llama/llama-3.3-70b-instruct",
+  },
+];
+
 async function protectAdminPage() {
   const { data, error } = await supabase.auth.getSession();
  
@@ -21,33 +39,9 @@ async function protectAdminPage() {
 }
 
 function normalizeList(value) {
-  if (!value) return [];
-
-  const raw = String(value).trim();
-
-  // ✅ 1. Try JSON parsing first
-  if (raw.startsWith("[") && raw.endsWith("]")) {
-    try {
-      const parsed = JSON.parse(raw);
-
-      if (Array.isArray(parsed)) {
-        return [
-          ...new Set(
-            parsed
-              .map((v) => String(v).trim().toLowerCase())
-              .filter(Boolean)
-          ),
-        ];
-      }
-    } catch (e) {
-      console.warn("Invalid JSON array input, falling back:", e);
-    }
-  }
-
-  // ✅ 2. Fallback to comma / semicolon split
   return [
     ...new Set(
-      raw
+      String(value || "")
         .split(/[;,]/)
         .map((s) => s.trim().toLowerCase())
         .filter(Boolean)
@@ -74,48 +68,6 @@ function parseRoleExperienceText(value) {
   const raw = String(value || "").trim();
   if (!raw) return null;
 
-  // Supports JSON input:
-  // [{"role":"Frontend Developer","years":20,"evidence":"..."}]
-  if (raw.startsWith("[") && raw.endsWith("]")) {
-    try {
-      const parsed = JSON.parse(raw);
-
-      if (Array.isArray(parsed)) {
-        const normalized = parsed
-          .map((item) => {
-            if (!item || typeof item !== "object") return null;
-
-            const role = String(item.role || "").trim().toLowerCase();
-            const evidence = String(item.evidence || "").trim();
-            const yearsRaw = item.years;
-
-            let years = null;
-            if (typeof yearsRaw === "number" && Number.isFinite(yearsRaw)) {
-              years = yearsRaw;
-            } else if (typeof yearsRaw === "string" && yearsRaw.trim()) {
-              const parsedYears = Number(yearsRaw);
-              years = Number.isFinite(parsedYears) ? parsedYears : null;
-            }
-
-            if (!role) return null;
-
-            return {
-              role,
-              years,
-              evidence,
-            };
-          })
-          .filter(Boolean);
-
-        return normalized.length ? normalized : null;
-      }
-    } catch (e) {
-      console.warn("Invalid role experience JSON, falling back:", e);
-    }
-  }
-
-  // Supports old manual input:
-  // Data Analyst 2 years; Manager 1 year
   const entries = raw
     .split(";")
     .map((item) => item.trim())
@@ -129,12 +81,7 @@ function parseRoleExperienceText(value) {
 
     const role = match[1].trim().toLowerCase();
     const years = Number(match[2]);
-
-    parsed.push({
-      role,
-      years,
-      evidence: "",
-    });
+    parsed.push({ role, years });
   }
 
   return parsed.length ? parsed : null;
@@ -368,7 +315,7 @@ async function uploadTempPdfAndGetSignedUrl(file, folder) {
 
   const { data: signedData, error: signedError } = await supabase.storage
     .from("admin-documents")
-    .createSignedUrl(filePath, 60);
+    .createSignedUrl(filePath, 600);
 
   if (signedError) {
     await supabase.storage.from("admin-documents").remove([filePath]);
@@ -460,6 +407,66 @@ function buildCvParsePayload(file, provider, modelName, promptVersion, candidate
   };
 }
 
+
+function extractFunctionError(response, parseData) {
+  const detailText =
+    parseData?.details?.message ||
+    parseData?.details?.raw ||
+    JSON.stringify(parseData?.details || parseData, null, 2);
+
+  return `${parseData?.error || `Function returned ${response.status}`}${detailText ? `\n${detailText}` : ""}`;
+}
+
+async function callParseFunction({ functionName, token, signedUrl, modelConfig, promptVersion, extraBody = {} }) {
+  const response = await fetch(`${SUPABASE_FUNCTIONS_BASE}/${functionName}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      pdf_url: signedUrl,
+      provider: modelConfig.provider,
+      model_name: modelConfig.modelName,
+      prompt_version: promptVersion,
+      ...extraBody,
+    })
+  });
+
+  const parseData = await response.json();
+  console.log(`${functionName} ${modelConfig.label} response:`, response.status, parseData);
+
+  if (!response.ok) {
+    throw new Error(extractFunctionError(response, parseData));
+  }
+
+  return parseData;
+}
+
+function formatMultiModelPreview(results) {
+  const preview = results.map((item) => {
+    if (item.status === "fulfilled") {
+      return {
+        model_label: item.model.label,
+        provider: item.model.provider,
+        model_name: item.model.modelName,
+        status: "saved",
+        parsed_output: item.data?.parse_payload || item.data?.parsed_output || item.data,
+      };
+    }
+
+    return {
+      model_label: item.model.label,
+      provider: item.model.provider,
+      model_name: item.model.modelName,
+      status: "error",
+      error: item.reason?.message || String(item.reason),
+    };
+  });
+
+  return JSON.stringify(preview, null, 2);
+}
+
 function wireParserForm() {
   const parseBtn = document.getElementById("parseJobPdfBtn");
   const statusEl = document.getElementById("parserStatus");
@@ -469,8 +476,9 @@ function wireParserForm() {
   if (!parseBtn || !statusEl || !previewEl || !fileInput) return;
 
   parseBtn.addEventListener("click", async () => {
-    statusEl.textContent = "Parsing job PDF...";
+    statusEl.textContent = "Parsing job PDF with 3 LLMs...";
     previewEl.textContent = "";
+    parseBtn.disabled = true;
 
     let tempFilePath = null;
 
@@ -478,65 +486,68 @@ function wireParserForm() {
       const file = fileInput.files?.[0];
       if (!file) throw new Error("Please select a PDF.");
 
-      const provider =
-        document.getElementById("parser_provider").value.trim() || "mistral";
-      const modelName =
-        document.getElementById("parser_model_name").value.trim() || "mistral-small-latest";
       const promptVersion =
-        document.getElementById("parser_prompt_version").value.trim() || "v1";
-     const jobid =
-        document.getElementById("parser_jobid").value.trim() || "000";
+        document.getElementById("parser_prompt_version")?.value.trim() || "v1";
+      const jobid =
+        document.getElementById("parser_jobid")?.value.trim() || "000";
 
       const token = await getSessionToken();
       const uploadData = await uploadTempPdfAndGetSignedUrl(file, "job-pdfs");
       tempFilePath = uploadData.filePath;
 
-      const response = await fetch(`${SUPABASE_FUNCTIONS_BASE}/parse-job-pdf`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          pdf_url: uploadData.signedUrl,
-          provider,
-          model_name: modelName,
-          prompt_version: promptVersion,
-          jobid
+      const settled = await Promise.allSettled(
+        THREE_LLM_PARSE_SUITE.map(async (model) => {
+          const parseData = await callParseFunction({
+            functionName: "parse-job-pdf",
+            token,
+            signedUrl: uploadData.signedUrl,
+            modelConfig: model,
+            promptVersion,
+            extraBody: { jobid },
+          });
+
+          const payload = buildJobParsePayload(
+            file,
+            model.provider,
+            model.modelName,
+            promptVersion,
+            jobid,
+            parseData
+          );
+
+          const { error: saveError } = await supabase
+            .from("llm_job_parses")
+            .insert([payload])
+            .select("parse_id");
+
+          if (saveError) throw saveError;
+
+          return parseData;
         })
-      });
+      );
 
-      const parseData = await response.json();
-      console.log("parse-job-pdf response:", response.status, parseData);
+      const results = settled.map((result, index) => ({
+        model: THREE_LLM_PARSE_SUITE[index],
+        ...result,
+      }));
 
-      if (!response.ok) {
-        const detailText =
-          parseData?.details?.message ||
-          parseData?.details?.raw ||
-          JSON.stringify(parseData?.details || parseData, null, 2);
+      previewEl.textContent = formatMultiModelPreview(results);
 
-        throw new Error(
-          `${parseData?.error || `Function returned ${response.status}`}\n${detailText}`
-        );
+      const okCount = results.filter((r) => r.status === "fulfilled").length;
+      const failedCount = results.length - okCount;
+
+      if (!okCount) {
+        throw new Error("All 3 job PDF parsing runs failed. Check the preview for model-specific errors.");
       }
 
-      const parsed = parseData?.parsed_output || {};
-      previewEl.textContent = JSON.stringify(parsed, null, 2);
-
-      const payload = buildJobParsePayload(file, provider, modelName, promptVersion,jobid, parseData);
-
-      const { error: saveError } = await supabase
-        .from("llm_job_parses")
-        .insert([payload])
-        .select("parse_id");
-
-      if (saveError) throw saveError;
-
-      statusEl.textContent = "Job PDF parsed and saved successfully.";
+      statusEl.textContent = failedCount
+        ? `Job PDF parsed with ${okCount}/3 LLMs. ${failedCount} run(s) failed.`
+        : "Job PDF parsed and saved with all 3 LLMs.";
     } catch (err) {
       console.error("Job parser error:", err);
       statusEl.textContent = `Error: ${err.message || err}`;
     } finally {
+      parseBtn.disabled = false;
       await deleteTempFile(tempFilePath);
     }
   });
@@ -551,8 +562,9 @@ function wireCvParserForm() {
   if (!parseBtn || !statusEl || !previewEl || !fileInput) return;
 
   parseBtn.addEventListener("click", async () => {
-    statusEl.textContent = "Parsing CV in GDPR-safe mode...";
+    statusEl.textContent = "Parsing CV in GDPR-safe mode with 3 LLMs...";
     previewEl.textContent = "";
+    parseBtn.disabled = true;
 
     let tempFilePath = null;
 
@@ -560,75 +572,71 @@ function wireCvParserForm() {
       const file = fileInput.files?.[0];
       if (!file) throw new Error("Please select a CV PDF.");
 
-      const provider =
-        document.getElementById("cv_parser_provider").value.trim() || "mistral";
-      const modelName =
-        document.getElementById("cv_parser_model_name").value.trim() || "mistral-small-latest";
       const promptVersion =
-        document.getElementById("cv_parser_prompt_version").value.trim() || "cv_admin_v1";
+        document.getElementById("cv_parser_prompt_version")?.value.trim() || "cv_admin_v1";
       const candidateRef =
-        document.getElementById("cv_parser_candidate_ref").value.trim() || null;
+        document.getElementById("cv_parser_candidate_ref")?.value.trim() || null;
       const testMode =
-        document.getElementById("cv_parser_test_mode").value === "true";
+        document.getElementById("cv_parser_test_mode")?.value === "true";
 
       const token = await getSessionToken();
       const uploadData = await uploadTempPdfAndGetSignedUrl(file, "cv-pdfs-temp");
       tempFilePath = uploadData.filePath;
 
-      const response = await fetch(`${SUPABASE_FUNCTIONS_BASE}/parse-cv-pdf-admin`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          pdf_url: uploadData.signedUrl,
-          provider,
-          model_name: modelName,
-          prompt_version: promptVersion,
-          test_mode: testMode
+      const settled = await Promise.allSettled(
+        THREE_LLM_PARSE_SUITE.map(async (model) => {
+          const parseData = await callParseFunction({
+            functionName: "parse-cv-pdf-admin",
+            token,
+            signedUrl: uploadData.signedUrl,
+            modelConfig: model,
+            promptVersion,
+            extraBody: { test_mode: testMode },
+          });
+
+          const payload = buildCvParsePayload(
+            file,
+            model.provider,
+            model.modelName,
+            promptVersion,
+            candidateRef,
+            testMode,
+            parseData
+          );
+
+          const { error: saveError } = await supabase
+            .from("llm_cv_parses")
+            .insert([payload])
+            .select("parse_id");
+
+          if (saveError) throw saveError;
+
+          return parseData;
         })
-      });
-
-      const parseData = await response.json();
-      console.log("parse-cv-pdf-admin response:", response.status, parseData);
-
-      if (!response.ok) {
-        const detailText =
-          parseData?.details?.message ||
-          parseData?.details?.raw ||
-          JSON.stringify(parseData?.details || parseData, null, 2);
-
-        throw new Error(
-          `${parseData?.error || `Function returned ${response.status}`}\n${detailText}`
-        );
-      }
-
-      previewEl.textContent = JSON.stringify(parseData?.parse_payload || parseData, null, 2);
-
-      const payload = buildCvParsePayload(
-        file,
-        provider,
-        modelName,
-        promptVersion,
-        candidateRef,
-        testMode,
-        parseData
       );
 
-      const { error: saveError } = await supabase
-        .from("llm_cv_parses")
-        .insert([payload])
-        .select("parse_id");
+      const results = settled.map((result, index) => ({
+        model: THREE_LLM_PARSE_SUITE[index],
+        ...result,
+      }));
 
-      if (saveError) throw saveError;
+      previewEl.textContent = formatMultiModelPreview(results);
 
-      statusEl.textContent =
-        "CV PDF parsed and saved successfully. Temporary uploaded CV file deleted.";
+      const okCount = results.filter((r) => r.status === "fulfilled").length;
+      const failedCount = results.length - okCount;
+
+      if (!okCount) {
+        throw new Error("All 3 CV parsing runs failed. Check the preview for model-specific errors.");
+      }
+
+      statusEl.textContent = failedCount
+        ? `CV PDF parsed with ${okCount}/3 LLMs. ${failedCount} run(s) failed. Temporary uploaded CV file deleted.`
+        : "CV PDF parsed and saved with all 3 LLMs. Temporary uploaded CV file deleted.";
     } catch (err) {
       console.error("CV parser error:", err);
       statusEl.textContent = `Error: ${err.message || err}`;
     } finally {
+      parseBtn.disabled = false;
       await deleteTempFile(tempFilePath);
     }
   });
