@@ -124,7 +124,7 @@
         <div class="full">
           <label for="cvPdfFile">Upload CV PDF(s)</label>
           <input id="cvPdfFile" type="file" accept="application/pdf" multiple />
-          <div class="hint">You can select one or many CV PDFs.</div>
+          <div class="hint">You can select one or many CV PDFs. If Candidate Ref is empty, the filename is used automatically.</div>
         </div>
 
         <div class="full">
@@ -141,8 +141,9 @@ Llama: meta-llama/llama-3.1-8b-instruct via OpenRouter</div>
         </div>
 
         <div>
-          <label for="cv_parser_candidate_ref">Candidate Ref (optional)</label>
-          <input id="cv_parser_candidate_ref" placeholder="internal_eval_candidate_001" />
+          <label for="cv_parser_candidate_ref">Candidate Ref Override</label>
+          <input id="cv_parser_candidate_ref" placeholder="Leave empty to use PDF filename, e.g. IT001" />
+          <div class="hint">Optional. For batch upload, leave this empty so each file gets its own filename-based reference.</div>
         </div>
 
         <div>
@@ -270,7 +271,7 @@ Llama: meta-llama/llama-3.1-8b-instruct via OpenRouter</div>
         <div class="full">
           <label for="jobPdfFile">Upload Job PDF(s)</label>
           <input id="jobPdfFile" type="file" accept="application/pdf" multiple />
-          <div class="hint">You can select one or many job PDFs.</div>
+          <div class="hint">You can select one or many job PDFs. If Job ID Reference is empty, the filename is used automatically.</div>
         </div>
 
         <div class="full">
@@ -287,8 +288,9 @@ Llama: meta-llama/llama-3.1-8b-instruct via OpenRouter</div>
         </div>
 
         <div>
-          <label for="parser_jobid">Job ID Reference</label>
-          <input id="parser_jobid" value="000" />
+          <label for="parser_jobid">Job ID Reference Override</label>
+          <input id="parser_jobid" placeholder="Leave empty to use PDF filename, e.g. SO002" />
+          <div class="hint">Optional. For batch upload, leave this empty so each file gets its own filename-based reference.</div>
         </div>
       </div>
 
