@@ -96,6 +96,12 @@ function sanitizeFilename(name) {
     .replace(/^_+|_+$/g, "");
 }
 
+function getFileReferenceName(fileName) {
+  return String(fileName || "")
+    .replace(/\.[^/.]+$/, "")
+    .trim();
+}
+
 function normalizeParsedArray(arr) {
   if (!Array.isArray(arr)) return [];
   return [...new Set(arr.map((x) => String(x || "").trim().toLowerCase()).filter(Boolean))];
@@ -434,6 +440,7 @@ function formatMultiModelPreview(results) {
     if (item.status === "fulfilled") {
       return {
         file_name: item.file_name,
+        reference: item.reference,
         model_label: item.model.label,
         provider: item.model.provider,
         model_name: item.model.modelName,
@@ -444,6 +451,7 @@ function formatMultiModelPreview(results) {
 
     return {
       file_name: item.file_name,
+      reference: item.reference,
       model_label: item.model.label,
       provider: item.model.provider,
       model_name: item.model.modelName,
@@ -457,6 +465,7 @@ function formatMultiModelPreview(results) {
 
 async function parseOneFileWithThreeModels({
   file,
+  reference,
   folder,
   functionName,
   token,
@@ -497,6 +506,7 @@ async function parseOneFileWithThreeModels({
 
     return settled.map((result, index) => ({
       file_name: file.name,
+      reference,
       model: THREE_LLM_PARSE_SUITE[index],
       ...result,
     }));
@@ -524,17 +534,21 @@ function wireParserForm() {
 
       const promptVersion =
         document.getElementById("parser_prompt_version")?.value.trim() || "v1";
-      const jobid =
-        document.getElementById("parser_jobid")?.value.trim() || "000";
+      const manualJobId =
+        document.getElementById("parser_jobid")?.value.trim() || "";
 
       const token = await getSessionToken();
       const allResults = [];
 
       for (const [fileIndex, file] of files.entries()) {
-        statusEl.textContent = `Parsing job PDF ${fileIndex + 1}/${files.length}: ${file.name}`;
+        const jobid = manualJobId || getFileReferenceName(file.name);
+
+        statusEl.textContent =
+          `Parsing job PDF ${fileIndex + 1}/${files.length}: ${file.name} → ${jobid}`;
 
         const fileResults = await parseOneFileWithThreeModels({
           file,
+          reference: jobid,
           folder: "job-pdfs",
           functionName: "parse-job-pdf",
           token,
@@ -594,8 +608,8 @@ function wireCvParserForm() {
 
       const promptVersion =
         document.getElementById("cv_parser_prompt_version")?.value.trim() || "cv_admin_v1";
-      const candidateRef =
-        document.getElementById("cv_parser_candidate_ref")?.value.trim() || null;
+      const manualCandidateRef =
+        document.getElementById("cv_parser_candidate_ref")?.value.trim() || "";
       const testMode =
         document.getElementById("cv_parser_test_mode")?.value === "true";
 
@@ -603,10 +617,14 @@ function wireCvParserForm() {
       const allResults = [];
 
       for (const [fileIndex, file] of files.entries()) {
-        statusEl.textContent = `Parsing CV ${fileIndex + 1}/${files.length}: ${file.name}`;
+        const candidateRef = manualCandidateRef || getFileReferenceName(file.name);
+
+        statusEl.textContent =
+          `Parsing CV ${fileIndex + 1}/${files.length}: ${file.name} → ${candidateRef}`;
 
         const fileResults = await parseOneFileWithThreeModels({
           file,
+          reference: candidateRef,
           folder: "cv-pdfs-temp",
           functionName: "parse-cv-pdf-admin",
           token,
