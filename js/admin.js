@@ -10,14 +10,14 @@ const THREE_LLM_PARSE_SUITE = [
     modelName: "mistral-small-latest",
   },
   {
-    label: "Gemma 2 9B Instruct",
+    label: "Gemma 4 31B Instruct",
     provider: "openrouter",
-    modelName: "google/gemma-2-9b-it",
+    modelName: "google/gemma-4-31b-it:free",
   },
   {
     label: "Llama 3.1 8B Instruct",
     provider: "openrouter",
-    modelName: "meta-llama/llama-3.1-8b-instruct",
+    modelName: "meta-llama/llama-3.1-8b-instruct:free",
   },
 ];
 
