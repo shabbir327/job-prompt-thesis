@@ -3,7 +3,7 @@ import { supabase } from "./supabaseClient.js";
 const BASE_PATH = "/job-prompt-thesis";
 const SUPABASE_FUNCTIONS_BASE = "https://vjwcpzprgqzbjmwjrfrc.supabase.co/functions/v1";
 
-const THREE_LLM_PARSE_SUITE = [
+const LLM_PARSE_SUITE = [
   {
     label: "Mistral Direct API",
     provider: "mistral",
@@ -18,6 +18,11 @@ const THREE_LLM_PARSE_SUITE = [
     label: "Llama 3.1 8B Instruct",
     provider: "openrouter",
     modelName: "meta-llama/llama-3.1-8b-instruct",
+  },
+  {
+    label: "Claude Haiku 4.5",
+    provider: "anthropic",
+    modelName: "claude-haiku-4-5-20251001",
   },
 ];
 
@@ -463,7 +468,7 @@ function formatMultiModelPreview(results) {
   return JSON.stringify(preview, null, 2);
 }
 
-async function parseOneFileWithThreeModels({
+async function parseOneFileWithAllModels({
   file,
   reference,
   folder,
@@ -473,6 +478,7 @@ async function parseOneFileWithThreeModels({
   extraBody = {},
   buildPayload,
   tableName,
+  models = LLM_PARSE_SUITE,
 }) {
   let tempFilePath = null;
 
@@ -481,7 +487,7 @@ async function parseOneFileWithThreeModels({
     tempFilePath = uploadData.filePath;
 
     const settled = await Promise.allSettled(
-      THREE_LLM_PARSE_SUITE.map(async (model) => {
+      models.map(async (model) => {
         const parseData = await callParseFunction({
           functionName,
           token,
@@ -507,7 +513,7 @@ async function parseOneFileWithThreeModels({
     return settled.map((result, index) => ({
       file_name: file.name,
       reference,
-      model: THREE_LLM_PARSE_SUITE[index],
+      model: models[index],
       ...result,
     }));
   } finally {
@@ -524,7 +530,16 @@ function wireParserForm() {
   if (!parseBtn || !statusEl || !previewEl || !fileInput) return;
 
   parseBtn.addEventListener("click", async () => {
-    statusEl.textContent = "Parsing job PDFs with 3 LLMs...";
+    const selectedModels = LLM_PARSE_SUITE.filter((_, i) =>
+      document.querySelector(`.job-model-check[value="${i}"]`)?.checked
+    );
+
+    if (!selectedModels.length) {
+      statusEl.textContent = "Please select at least one model.";
+      return;
+    }
+
+    statusEl.textContent = `Parsing job PDFs with ${selectedModels.length} LLM(s)...`;
     previewEl.textContent = "";
     parseBtn.disabled = true;
 
@@ -546,7 +561,7 @@ function wireParserForm() {
         statusEl.textContent =
           `Parsing job PDF ${fileIndex + 1}/${files.length}: ${file.name} → ${jobid}`;
 
-        const fileResults = await parseOneFileWithThreeModels({
+        const fileResults = await parseOneFileWithAllModels({
           file,
           reference: jobid,
           folder: "job-pdfs",
@@ -555,6 +570,7 @@ function wireParserForm() {
           promptVersion,
           extraBody: { jobid },
           tableName: "llm_job_parses",
+          models: selectedModels,
           buildPayload: (currentFile, model, parseData) =>
             buildJobParsePayload(
               currentFile,
@@ -579,7 +595,7 @@ function wireParserForm() {
 
       statusEl.textContent = failedCount
         ? `Batch completed: ${okCount}/${allResults.length} job parsing runs saved. ${failedCount} failed.`
-        : `Batch completed: ${files.length} job PDF(s) parsed and saved with all 3 LLMs.`;
+        : `Batch completed: ${files.length} job PDF(s) parsed and saved with ${selectedModels.length} LLM(s).`;
     } catch (err) {
       console.error("Job parser error:", err);
       statusEl.textContent = `Error: ${err.message || err}`;
@@ -589,16 +605,19 @@ function wireParserForm() {
   });
 }
 
-function wireCvParserForm() {
-  const parseBtn = document.getElementById("parseCvPdfBtn");
-  const statusEl = document.getElementById("cvParserStatus");
-  const previewEl = document.getElementById("cvParserPreview");
-  const fileInput = document.getElementById("cvPdfFile");
-
-  if (!parseBtn || !statusEl || !previewEl || !fileInput) return;
+if (!parseBtn || !statusEl || !previewEl || !fileInput) return;
 
   parseBtn.addEventListener("click", async () => {
-    statusEl.textContent = "Parsing CV PDFs with 3 LLMs...";
+    const selectedModels = LLM_PARSE_SUITE.filter((_, i) =>
+      document.querySelector(`.cv-model-check[value="${i}"]`)?.checked
+    );
+
+    if (!selectedModels.length) {
+      statusEl.textContent = "Please select at least one model.";
+      return;
+    }
+
+    statusEl.textContent = `Parsing CV PDFs with ${selectedModels.length} LLM(s)...`;
     previewEl.textContent = "";
     parseBtn.disabled = true;
 
@@ -622,7 +641,7 @@ function wireCvParserForm() {
         statusEl.textContent =
           `Parsing CV ${fileIndex + 1}/${files.length}: ${file.name} → ${candidateRef}`;
 
-        const fileResults = await parseOneFileWithThreeModels({
+        const fileResults = await parseOneFileWithAllModels({
           file,
           reference: candidateRef,
           folder: "cv-pdfs-temp",
@@ -631,6 +650,7 @@ function wireCvParserForm() {
           promptVersion,
           extraBody: { test_mode: testMode },
           tableName: "llm_cv_parses",
+          models: selectedModels,
           buildPayload: (currentFile, model, parseData) =>
             buildCvParsePayload(
               currentFile,
@@ -656,7 +676,7 @@ function wireCvParserForm() {
 
       statusEl.textContent = failedCount
         ? `Batch completed: ${okCount}/${allResults.length} CV parsing runs saved. ${failedCount} failed. Temporary files deleted.`
-        : `Batch completed: ${files.length} CV PDF(s) parsed and saved with all 3 LLMs. Temporary files deleted.`;
+        : `Batch completed: ${files.length} CV PDF(s) parsed and saved with ${selectedModels.length} LLM(s). Temporary files deleted.`;
     } catch (err) {
       console.error("CV parser error:", err);
       statusEl.textContent = `Error: ${err.message || err}`;
