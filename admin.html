@@ -128,12 +128,15 @@
         </div>
 
         <div class="full">
-          <label>3-LLM evaluation suite</label>
-        <div class="preview">Mistral Direct API: mistral-small-latest
-        Gemma: google/gemma-4-26b-a4b-it via OpenRouter
-        Llama: meta-llama/llama-3.1-8b-instruct via OpenRouter</div>
-          <div class="hint">One click runs all three parsers and saves one result row per file per model.</div>
-        </div>
+  <label>Select models to run</label>
+  <div class="model-checkboxes">
+    <label><input type="checkbox" class="cv-model-check" value="0" checked> Mistral Direct API — mistral-small-latest</label>
+    <label><input type="checkbox" class="cv-model-check" value="1" checked> Gemma — google/gemma-4-26b-a4b-it via OpenRouter</label>
+    <label><input type="checkbox" class="cv-model-check" value="2" checked> Llama — meta-llama/llama-3.1-8b-instruct via OpenRouter</label>
+    <label><input type="checkbox" class="cv-model-check" value="3"> Claude — claude-haiku-4-5-20251001 via Anthropic</label>
+  </div>
+  <div class="hint">Check any combination. One result row per file per selected model is saved.</div>
+</div>
 
         <div>
           <label for="cv_parser_prompt_version">Prompt Version</label>
@@ -275,12 +278,15 @@
         </div>
 
         <div class="full">
-          <label>3-LLM evaluation suite</label>
-          <div class="preview">Mistral Direct API: mistral-small-latest
-Gemma: google/gemma-2-9b-it via OpenRouter
-Llama: meta-llama/llama-3.1-8b-instruct via OpenRouter</div>
-          <div class="hint">One click runs all three parsers and saves one result row per file per model.</div>
-        </div>
+  <label>Select models to run</label>
+  <div class="model-checkboxes">
+    <label><input type="checkbox" class="job-model-check" value="0" checked> Mistral Direct API — mistral-small-latest</label>
+    <label><input type="checkbox" class="job-model-check" value="1" checked> Gemma — google/gemma-4-26b-a4b-it via OpenRouter</label>
+    <label><input type="checkbox" class="job-model-check" value="2" checked> Llama — meta-llama/llama-3.1-8b-instruct via OpenRouter</label>
+    <label><input type="checkbox" class="job-model-check" value="3"> Claude — claude-haiku-4-5-20251001 via Anthropic</label>
+  </div>
+  <div class="hint">Check any combination. One result row per file per selected model is saved.</div>
+</div>
 
         <div>
           <label for="parser_prompt_version">Prompt Version</label>
