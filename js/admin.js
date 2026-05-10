@@ -1,5 +1,5 @@
 import { supabase } from "./supabaseClient.js";
- 
+
 const BASE_PATH = "/job-prompt-thesis";
 const SUPABASE_FUNCTIONS_BASE = "https://vjwcpzprgqzbjmwjrfrc.supabase.co/functions/v1";
 
@@ -521,6 +521,94 @@ async function parseOneFileWithAllModels({
   }
 }
 
+// ---- FIX: wireCvParserForm was missing its function declaration ----
+function wireCvParserForm() {
+  const parseBtn = document.getElementById("parseCvPdfBtn");
+  const statusEl = document.getElementById("cvParserStatus");
+  const previewEl = document.getElementById("cvParserPreview");
+  const fileInput = document.getElementById("cvPdfFile");
+
+  if (!parseBtn || !statusEl || !previewEl || !fileInput) return;
+
+  parseBtn.addEventListener("click", async () => {
+    const selectedModels = LLM_PARSE_SUITE.filter((_, i) =>
+      document.querySelector(`.cv-model-check[value="${i}"]`)?.checked
+    );
+
+    if (!selectedModels.length) {
+      statusEl.textContent = "Please select at least one model.";
+      return;
+    }
+
+    statusEl.textContent = `Parsing CV PDFs with ${selectedModels.length} LLM(s)...`;
+    previewEl.textContent = "";
+    parseBtn.disabled = true;
+
+    try {
+      const files = Array.from(fileInput.files || []);
+      if (!files.length) throw new Error("Please select at least one PDF.");
+
+      const promptVersion =
+        document.getElementById("cv_parser_prompt_version")?.value.trim() || "cv_admin_v1";
+      const manualCandidateRef =
+        document.getElementById("cv_parser_candidate_ref")?.value.trim() || "";
+      const testMode =
+        document.getElementById("cv_parser_test_mode")?.value === "true";
+
+      const token = await getSessionToken();
+      const allResults = [];
+
+      for (const [fileIndex, file] of files.entries()) {
+        const candidateRef = manualCandidateRef || getFileReferenceName(file.name);
+
+        statusEl.textContent =
+          `Parsing CV ${fileIndex + 1}/${files.length}: ${file.name} → ${candidateRef}`;
+
+        const fileResults = await parseOneFileWithAllModels({
+          file,
+          reference: candidateRef,
+          folder: "cv-pdfs-temp",
+          functionName: "parse-cv-pdf-admin",
+          token,
+          promptVersion,
+          extraBody: { test_mode: testMode },
+          tableName: "llm_cv_parses",
+          models: selectedModels,
+          buildPayload: (currentFile, model, parseData) =>
+            buildCvParsePayload(
+              currentFile,
+              model.provider,
+              model.modelName,
+              promptVersion,
+              candidateRef,
+              testMode,
+              parseData
+            ),
+        });
+
+        allResults.push(...fileResults);
+        previewEl.textContent = formatMultiModelPreview(allResults);
+      }
+
+      const okCount = allResults.filter((r) => r.status === "fulfilled").length;
+      const failedCount = allResults.length - okCount;
+
+      if (!okCount) {
+        throw new Error("All batch CV parsing runs failed. Check the preview for model-specific errors.");
+      }
+
+      statusEl.textContent = failedCount
+        ? `Batch completed: ${okCount}/${allResults.length} CV parsing runs saved. ${failedCount} failed. Temporary files deleted.`
+        : `Batch completed: ${files.length} CV PDF(s) parsed and saved with ${selectedModels.length} LLM(s). Temporary files deleted.`;
+    } catch (err) {
+      console.error("CV parser error:", err);
+      statusEl.textContent = `Error: ${err.message || err}`;
+    } finally {
+      parseBtn.disabled = false;
+    }
+  });
+}
+
 function wireParserForm() {
   const parseBtn = document.getElementById("parseJobPdfBtn");
   const statusEl = document.getElementById("parserStatus");
@@ -598,87 +686,6 @@ function wireParserForm() {
         : `Batch completed: ${files.length} job PDF(s) parsed and saved with ${selectedModels.length} LLM(s).`;
     } catch (err) {
       console.error("Job parser error:", err);
-      statusEl.textContent = `Error: ${err.message || err}`;
-    } finally {
-      parseBtn.disabled = false;
-    }
-  });
-}
-
-if (!parseBtn || !statusEl || !previewEl || !fileInput) return;
-
-  parseBtn.addEventListener("click", async () => {
-    const selectedModels = LLM_PARSE_SUITE.filter((_, i) =>
-      document.querySelector(`.cv-model-check[value="${i}"]`)?.checked
-    );
-
-    if (!selectedModels.length) {
-      statusEl.textContent = "Please select at least one model.";
-      return;
-    }
-
-    statusEl.textContent = `Parsing CV PDFs with ${selectedModels.length} LLM(s)...`;
-    previewEl.textContent = "";
-    parseBtn.disabled = true;
-
-    try {
-      const files = Array.from(fileInput.files || []);
-      if (!files.length) throw new Error("Please select at least one PDF.");
-
-      const promptVersion =
-        document.getElementById("cv_parser_prompt_version")?.value.trim() || "cv_admin_v1";
-      const manualCandidateRef =
-        document.getElementById("cv_parser_candidate_ref")?.value.trim() || "";
-      const testMode =
-        document.getElementById("cv_parser_test_mode")?.value === "true";
-
-      const token = await getSessionToken();
-      const allResults = [];
-
-      for (const [fileIndex, file] of files.entries()) {
-        const candidateRef = manualCandidateRef || getFileReferenceName(file.name);
-
-        statusEl.textContent =
-          `Parsing CV ${fileIndex + 1}/${files.length}: ${file.name} → ${candidateRef}`;
-
-        const fileResults = await parseOneFileWithAllModels({
-          file,
-          reference: candidateRef,
-          folder: "cv-pdfs-temp",
-          functionName: "parse-cv-pdf-admin",
-          token,
-          promptVersion,
-          extraBody: { test_mode: testMode },
-          tableName: "llm_cv_parses",
-          models: selectedModels,
-          buildPayload: (currentFile, model, parseData) =>
-            buildCvParsePayload(
-              currentFile,
-              model.provider,
-              model.modelName,
-              promptVersion,
-              candidateRef,
-              testMode,
-              parseData
-            ),
-        });
-
-        allResults.push(...fileResults);
-        previewEl.textContent = formatMultiModelPreview(allResults);
-      }
-
-      const okCount = allResults.filter((r) => r.status === "fulfilled").length;
-      const failedCount = allResults.length - okCount;
-
-      if (!okCount) {
-        throw new Error("All batch CV parsing runs failed. Check the preview for model-specific errors.");
-      }
-
-      statusEl.textContent = failedCount
-        ? `Batch completed: ${okCount}/${allResults.length} CV parsing runs saved. ${failedCount} failed. Temporary files deleted.`
-        : `Batch completed: ${files.length} CV PDF(s) parsed and saved with ${selectedModels.length} LLM(s). Temporary files deleted.`;
-    } catch (err) {
-      console.error("CV parser error:", err);
       statusEl.textContent = `Error: ${err.message || err}`;
     } finally {
       parseBtn.disabled = false;
